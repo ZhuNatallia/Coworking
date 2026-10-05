@@ -3,8 +3,8 @@
 import { Minus, PackageCheck, Plus, ShoppingBag } from "lucide-react";
 import { useState, useTransition } from "react";
 import { deliverRequest, setSupplyState } from "@/app/actions/visits";
-import { cx } from "@/components/ui";
-import { SUPPLY_STATUS_LABEL, UNIT_LABEL, unitFor } from "@/lib/labels";
+import { cx } from "@/components/ui-core";
+import { useI18n } from "@/lib/i18n/client";
 import type { SupplyStatus, SupplyUnit } from "@/lib/types";
 
 export interface SupplyRowProps {
@@ -25,6 +25,7 @@ const STATUS_STYLE: Record<SupplyStatus, string> = {
 };
 
 export function SupplyRow({ id, visitId, name, unit, quantity: q0, status: s0, request: r0 }: SupplyRowProps) {
+  const { t, fmt } = useI18n();
   const [quantity, setQuantity] = useState(q0);
   const [status, setStatus] = useState(s0);
   const [request, setRequest] = useState(r0);
@@ -76,12 +77,12 @@ export function SupplyRow({ id, visitId, name, unit, quantity: q0, status: s0, r
       <div className="flex items-center gap-3">
         <p className="min-w-0 flex-1 font-semibold">{name}</p>
         <div className="flex items-center rounded-xl border border-line bg-white">
-          <button type="button" onClick={() => changeQty(-step)} className="flex size-10 items-center justify-center text-muted" aria-label={`Меньше: ${name}`}>
+          <button type="button" onClick={() => changeQty(-step)} className="flex size-10 items-center justify-center text-muted" aria-label={t("supply.less", { name })}>
             <Minus className="size-4" />
           </button>
           <input
             inputMode="decimal"
-            aria-label={`Количество: ${name}`}
+            aria-label={t("supply.amount", { name })}
             value={quantity ?? ""}
             placeholder="—"
             onChange={(e) => {
@@ -93,14 +94,14 @@ export function SupplyRow({ id, visitId, name, unit, quantity: q0, status: s0, r
             onBlur={() => quantity !== q0 && save(quantity, status)}
             className="w-10 bg-transparent text-center text-[16px] font-semibold outline-none"
           />
-          <button type="button" onClick={() => changeQty(step)} className="flex size-10 items-center justify-center text-muted" aria-label={`Больше: ${name}`}>
+          <button type="button" onClick={() => changeQty(step)} className="flex size-10 items-center justify-center text-muted" aria-label={t("supply.more", { name })}>
             <Plus className="size-4" />
           </button>
         </div>
-        <span className="w-14 text-sm text-muted">{quantity != null ? unitFor(quantity, unit) : UNIT_LABEL[unit]}</span>
+        <span className="w-16 text-sm text-muted">{fmt.unit(quantity, unit)}</span>
       </div>
 
-      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={`Статус: ${name}`}>
+      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("supply.status", { name })}>
         {(["ok", "low", "out"] as const).map((s) => (
           <button
             key={s}
@@ -113,7 +114,7 @@ export function SupplyRow({ id, visitId, name, unit, quantity: q0, status: s0, r
               status === s ? STATUS_STYLE[s] : "border-line bg-white text-ink",
             )}
           >
-            {SUPPLY_STATUS_LABEL[s]}
+            {t(`supplyStatus.${s}`)}
           </button>
         ))}
       </div>
@@ -123,8 +124,8 @@ export function SupplyRow({ id, visitId, name, unit, quantity: q0, status: s0, r
           <ShoppingBag className="size-4 shrink-0" />
           <span className="flex-1">
             {request.fromThisVisit
-              ? "Добавлено в «Взять с собой»"
-              : `В списке «Взять с собой»${request.byName ? ` — отметил(а) ${request.byName}` : ""}${request.date ? `, ${request.date}` : ""}`}
+              ? t("supply.added")
+              : `${request.byName ? t("supply.inListBy", { name: request.byName }) : t("supply.inList")}${request.date ? `, ${request.date}` : ""}`}
           </span>
           {!request.fromThisVisit && (
             <button
@@ -134,12 +135,12 @@ export function SupplyRow({ id, visitId, name, unit, quantity: q0, status: s0, r
               className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-brand-600 px-3 font-semibold text-white"
             >
               <PackageCheck className="size-4" />
-              Привезено
+              {t("supply.delivered")}
             </button>
           )}
         </div>
       )}
-      {error && <p className="text-sm text-danger-700">Не удалось сохранить. Проверьте интернет и попробуйте ещё раз.</p>}
+      {error && <p className="text-sm text-danger-700">{t("common.saveError")}</p>}
     </div>
   );
 }

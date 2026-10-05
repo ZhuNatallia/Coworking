@@ -3,10 +3,12 @@ import { createCity } from "@/app/actions/admin";
 import { ActionForm } from "@/components/action-form";
 import { Card, EmptyState, inputClass, LinkButton, ListLink, Page, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/current";
+import { getI18n } from "@/lib/i18n/server";
 import { loadRefs, myOfficeIds, shortAddress } from "@/lib/queries";
 
 export default async function OfficesPage() {
   const user = await requireUser();
+  const { t } = await getI18n();
   const admin = user.role === "admin";
   const refs = await loadRefs();
   const allowed = await myOfficeIds(user);
@@ -15,17 +17,17 @@ export default async function OfficesPage() {
 
   return (
     <>
-      <PageHeader title="Офисы" />
+      <PageHeader title={t("offices.title")} />
       <Page>
-        {offices.length === 0 && !admin && <EmptyState>Вам пока не назначены офисы.</EmptyState>}
+        {offices.length === 0 && !admin && <EmptyState>{t("offices.noneAssigned")}</EmptyState>}
         {cities.map((city) => {
-          const list = offices.filter((o) => o.city_id === city.id).sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }));
+          const list = offices.filter((o) => o.city_id === city.id).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
           if (!list.length && !admin) return null;
           return (
             <section key={city.id} className="flex flex-col gap-2">
               <h2 className="px-1 text-[15px] font-semibold">{city.name}</h2>
               {list.length === 0 ? (
-                <EmptyState>В этом городе пока нет офисов.</EmptyState>
+                <EmptyState>{t("offices.emptyCity")}</EmptyState>
               ) : (
                 <Card className="divide-y divide-line p-0">
                   {list.map((o) => (
@@ -37,9 +39,9 @@ export default async function OfficesPage() {
                         <div className="min-w-0">
                           <p className="font-medium">
                             {o.name}
-                            {!o.active && <span className="ml-2 text-xs text-muted">отключён</span>}
+                            {!o.active && <span className="ml-2 text-xs text-muted">{t("common.disabled")}</span>}
                           </p>
-                          <p className="truncate text-sm text-muted">{shortAddress(o.address) || "Адрес не указан"}</p>
+                          <p className="truncate text-sm text-muted">{shortAddress(o.address) || t("offices.noAddress")}</p>
                         </div>
                       </div>
                     </ListLink>
@@ -54,11 +56,11 @@ export default async function OfficesPage() {
           <>
             <LinkButton href="/offices/new">
               <Plus className="size-5" />
-              Добавить офис
+              {t("offices.add")}
             </LinkButton>
             <Card>
-              <ActionForm action={createCity} submitLabel="Добавить город" variant="outline" resetOnSuccess>
-                <input name="name" placeholder="Новый город, например Nürnberg" className={inputClass} aria-label="Название города" />
+              <ActionForm action={createCity} submitLabel={t("offices.addCity")} variant="outline" resetOnSuccess>
+                <input name="name" placeholder={t("offices.cityPlaceholder")} className={inputClass} aria-label={t("offices.cityName")} />
               </ActionForm>
             </Card>
           </>

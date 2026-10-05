@@ -7,21 +7,15 @@ import { isValidISODate, todayISO } from "@/lib/dates";
 import { db, newId, nowISO } from "@/lib/db";
 import { clearFutureVisits, syncSchedule } from "@/lib/domain/schedule";
 import { bool, oneOf, optStr, str } from "@/lib/form";
+import { getI18n } from "@/lib/i18n/server";
 import type { Recurrence, Schedule, VisitStatus } from "@/lib/types";
 import type { FormState } from "./auth";
 
 const TIME_RE = /^\d{2}:\d{2}$/;
 
-function visitWord(n: number) {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return "визит";
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return "визита";
-  return "визитов";
-}
-
 export async function saveSchedule(_prev: FormState, form: FormData): Promise<FormState> {
   await requireAdmin();
+  const { t } = await getI18n();
   const store = db();
   const id = str(form, "id");
   const officeId = str(form, "office_id");
@@ -32,15 +26,15 @@ export async function saveSchedule(_prev: FormState, form: FormData): Promise<Fo
   const employee2 = optStr(form, "employee_2_id");
   const startsOn = str(form, "starts_on") || todayISO();
 
-  if (!(await store.select("offices", { eq: { id: officeId } })).length) return { error: "Выберите офис" };
-  if (!(weekday >= 1 && weekday <= 7)) return { error: "Выберите день недели" };
-  if (time && !TIME_RE.test(time)) return { error: "Время в формате ЧЧ:ММ" };
-  if (!employee1) return { error: "Назначьте сотрудника" };
-  if (employee2 && employee2 === employee1) return { error: "Выберите двух разных сотрудников" };
+  if (!(await store.select("offices", { eq: { id: officeId } })).length) return { error: t("schedule.errOffice") };
+  if (!(weekday >= 1 && weekday <= 7)) return { error: t("schedule.errWeekday") };
+  if (time && !TIME_RE.test(time)) return { error: t("schedule.errTime") };
+  if (!employee1) return { error: t("schedule.errEmployee") };
+  if (employee2 && employee2 === employee1) return { error: t("schedule.errDifferent") };
   if (recurrence !== "weekly" && !employee2) {
-    return { error: recurrence === "pair" ? "Для двух сотрудников выберите второго" : "Для очереди выберите второго сотрудника" };
+    return { error: t(recurrence === "pair" ? "schedule.errPairSecond" : "schedule.errAlternateSecond") };
   }
-  if (!isValidISODate(startsOn)) return { error: "Неверная дата начала" };
+  if (!isValidISODate(startsOn)) return { error: t("schedule.errStart") };
 
   const fields = {
     office_id: officeId,
@@ -56,7 +50,7 @@ export async function saveSchedule(_prev: FormState, form: FormData): Promise<Fo
   let schedule: Schedule;
   if (id) {
     const [existing] = await store.select("schedules", { eq: { id } });
-    if (!existing) return { error: "Расписание не найдено" };
+    if (!existing) return { error: t("schedule.errNotFound") };
     await store.update("schedules", { eq: { id } }, fields);
     schedule = { ...existing, ...fields };
   } else {
@@ -68,11 +62,11 @@ export async function saveSchedule(_prev: FormState, form: FormData): Promise<Fo
   if (!id) redirect(`/admin/schedule/${schedule.id}?created=${plan.insert.length}`);
   refresh();
   const parts = [
-    plan.insert.length && `создано ${plan.insert.length} ${visitWord(plan.insert.length)}`,
-    plan.update.length && `обновлено ${plan.update.length}`,
-    plan.remove.length && `удалено ${plan.remove.length}`,
-  ].filter(Boolean);
-  return { ok: `Сохранено. ${parts.length ? `Будущие визиты: ${parts.join(", ")}.` : "Будущие визиты не изменились."}` };
+    plan.insert.length && t("schedule.createdN", { count: plan.insert.length }),
+    plan.update.length && t("schedule.updatedN", { count: plan.update.length }),
+    plan.remove.length && t("schedule.removedN", { count: plan.remove.length }),
+  ].filter((p): p is string => !!p);
+  return { ok: `${t("schedule.saved")} ${parts.length ? t("schedule.changes", { list: parts.join(", ") }) : t("schedule.noChanges")}` };
 }
 
 export async function deleteSchedule(form: FormData) {
@@ -90,21 +84,22 @@ export async function deleteSchedule(form: FormData) {
 /** Admin edit of one visit. Marks it as an exception so the schedule never overwrites it. */
 export async function updateVisit(_prev: FormState, form: FormData): Promise<FormState> {
   await requireAdmin();
+  const { t } = await getI18n();
   const id = str(form, "id");
   const store = db();
   const [visit] = await store.select("visits", { eq: { id } });
-  if (!visit) return { error: "Визит не найден" };
-  if (visit.status === "done" || visit.status === "in_progress") return { error: "Начатый или завершённый визит изменить нельзя" };
+  if (!visit) return { error: t("visitForm.errNotFound") };
+  if (visit.status === "done" || visit.status === "in_progress") return { error: t("visitForm.errLocked") };
 
   const date = str(form, "scheduled_date");
   const time = optStr(form, "time");
   const employee1 = optStr(form, "employee_1_id");
   const employee2 = optStr(form, "employee_2_id");
   const status = oneOf<VisitStatus>(str(form, "status"), ["planned", "skipped"], "planned");
-  if (!isValidISODate(date)) return { error: "Укажите дату" };
-  if (time && !TIME_RE.test(time)) return { error: "Время в формате ЧЧ:ММ" };
-  if (!employee1) return { error: "Назначьте сотрудника" };
-  if (employee2 && employee2 === employee1) return { error: "Выберите двух разных сотрудников" };
+  if (!isValidISODate(date)) return { error: t("visitForm.errDate") };
+  if (time && !TIME_RE.test(time)) return { error: t("schedule.errTime") };
+  if (!employee1) return { error: t("schedule.errEmployee") };
+  if (employee2 && employee2 === employee1) return { error: t("schedule.errDifferent") };
 
   await store.update(
     "visits",
@@ -112,7 +107,7 @@ export async function updateVisit(_prev: FormState, form: FormData): Promise<For
     { scheduled_date: date, time, employee_1_id: employee1, employee_2_id: employee2, status, is_override: true, notes: optStr(form, "notes") },
   );
   refresh();
-  return { ok: "Изменения сохранены только для этого визита. Регулярное расписание не изменилось." };
+  return { ok: t("visitForm.saved") };
 }
 
 /** Puts an edited visit back under the control of its schedule. */
@@ -134,17 +129,18 @@ export async function resetVisitOverride(form: FormData) {
 
 export async function createVisit(_prev: FormState, form: FormData): Promise<FormState> {
   await requireAdmin();
+  const { t } = await getI18n();
   const officeId = str(form, "office_id");
   const date = str(form, "scheduled_date");
   const time = optStr(form, "time");
   const employee1 = optStr(form, "employee_1_id");
   const employee2 = optStr(form, "employee_2_id");
   const store = db();
-  if (!(await store.select("offices", { eq: { id: officeId } })).length) return { error: "Выберите офис" };
-  if (!isValidISODate(date)) return { error: "Укажите дату" };
-  if (time && !TIME_RE.test(time)) return { error: "Время в формате ЧЧ:ММ" };
-  if (!employee1) return { error: "Назначьте сотрудника" };
-  if (employee2 && employee2 === employee1) return { error: "Выберите двух разных сотрудников" };
+  if (!(await store.select("offices", { eq: { id: officeId } })).length) return { error: t("schedule.errOffice") };
+  if (!isValidISODate(date)) return { error: t("visitForm.errDate") };
+  if (time && !TIME_RE.test(time)) return { error: t("schedule.errTime") };
+  if (!employee1) return { error: t("schedule.errEmployee") };
+  if (employee2 && employee2 === employee1) return { error: t("schedule.errDifferent") };
   const id = newId();
   await store.insert("visits", [
     {

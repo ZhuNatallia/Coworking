@@ -3,23 +3,25 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Building2, CalendarDays, Home, MoreHorizontal, ShoppingBag, Users } from "lucide-react";
+import { useI18n } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/core";
 import type { Role } from "@/lib/types";
-import { cx } from "./ui";
+import { cx } from "./ui-core";
 
-const EMPLOYEE = [
-  { href: "/", label: "Сегодня", icon: Home },
-  { href: "/calendar", label: "Календарь", icon: CalendarDays },
-  { href: "/take", label: "Взять", icon: ShoppingBag },
-  { href: "/offices", label: "Офисы", icon: Building2 },
-  { href: "/more", label: "Ещё", icon: MoreHorizontal },
+const EMPLOYEE: { href: string; label: MessageKey; icon: typeof Home }[] = [
+  { href: "/", label: "nav.today", icon: Home },
+  { href: "/calendar", label: "nav.calendar", icon: CalendarDays },
+  { href: "/take", label: "nav.take", icon: ShoppingBag },
+  { href: "/offices", label: "nav.offices", icon: Building2 },
+  { href: "/more", label: "nav.more", icon: MoreHorizontal },
 ];
 
-const ADMIN = [
-  { href: "/", label: "Главная", icon: Home },
-  { href: "/calendar", label: "Календарь", icon: CalendarDays },
-  { href: "/offices", label: "Офисы", icon: Building2 },
-  { href: "/admin/employees", label: "Сотрудники", icon: Users },
-  { href: "/more", label: "Ещё", icon: MoreHorizontal },
+const ADMIN: typeof EMPLOYEE = [
+  { href: "/", label: "nav.home", icon: Home },
+  { href: "/calendar", label: "nav.calendar", icon: CalendarDays },
+  { href: "/offices", label: "nav.offices", icon: Building2 },
+  { href: "/admin/employees", label: "nav.employees", icon: Users },
+  { href: "/more", label: "nav.more", icon: MoreHorizontal },
 ];
 
 const MORE_PATHS = ["/more", "/history", "/profile", "/admin", "/take"];
@@ -36,9 +38,10 @@ function isActive(href: string, pathname: string, items: { href: string }[]) {
 
 export function BottomNav({ role }: { role: Role }) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const items = role === "admin" ? ADMIN : EMPLOYEE;
   return (
-    <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[430px] border-t border-line bg-white" aria-label="Основное меню">
+    <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[430px] border-t border-line bg-white" aria-label={t("nav.menu")}>
       <ul className="flex">
         {items.map(({ href, label, icon: Icon }) => {
           const active = isActive(href, pathname, items);
@@ -55,7 +58,7 @@ export function BottomNav({ role }: { role: Role }) {
                 <span className={cx("flex h-7 w-12 items-center justify-center rounded-full", active && "bg-brand-50")}>
                   <Icon className="size-[22px]" strokeWidth={active ? 2.3 : 1.8} />
                 </span>
-                {label}
+                {t(label)}
               </Link>
             </li>
           );

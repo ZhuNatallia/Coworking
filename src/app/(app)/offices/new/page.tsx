@@ -2,23 +2,25 @@ import { createOffice } from "@/app/actions/admin";
 import { OfficeForm } from "@/components/office-form";
 import { Card, EmptyState, Page, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth/current";
+import { getI18n } from "@/lib/i18n/server";
 import { loadRefs } from "@/lib/queries";
 
 export default async function NewOfficePage() {
   await requireAdmin();
+  const { t } = await getI18n();
   const cities = [...(await loadRefs()).cities.values()];
   return (
     <>
-      <PageHeader title="Новый офис" back="/offices" />
+      <PageHeader title={t("offices.newTitle")} back="/offices" />
       <Page>
         {cities.length === 0 ? (
-          <EmptyState>Сначала добавьте город на странице «Офисы».</EmptyState>
+          <EmptyState>{t("offices.needCity")}</EmptyState>
         ) : (
           <Card>
             <OfficeForm action={createOffice} cities={cities} />
           </Card>
         )}
-        <p className="px-1 text-sm text-muted">Новый офис получит базовый чек-лист и все активные расходные материалы. Их можно изменить в карточке офиса.</p>
+        <p className="px-1 text-sm text-muted">{t("offices.newHint")}</p>
       </Page>
     </>
   );

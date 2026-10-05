@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, endOfMonth, formatDateLong, isoWeek, isoWeekday, startOfWeek, todayISO } from "@/lib/dates";
+import { addDays, endOfMonth, isoWeek, isoWeekday, startOfWeek, todayISO } from "@/lib/dates";
 
 describe("dates", () => {
   it("computes ISO weekday and week", () => {
@@ -19,9 +19,5 @@ describe("dates", () => {
 
   it("uses Berlin time for today", () => {
     expect(todayISO(new Date("2026-10-05T22:30:00Z"))).toBe("2026-10-06");
-  });
-
-  it("formats in Russian", () => {
-    expect(formatDateLong("2026-09-03")).toBe("3 сентября 2026");
   });
 });

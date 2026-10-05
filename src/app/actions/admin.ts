@@ -2,11 +2,13 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
-import { AccountError, createAccount, setPassword } from "@/lib/auth/accounts";
+import { AccountError, accountErrorText, createAccount, setPassword } from "@/lib/auth/accounts";
 import { requireAdmin } from "@/lib/auth/current";
 import { db, newId, nowISO } from "@/lib/db";
 import { DEFAULT_TASKS } from "@/lib/domain/templates";
 import { bool, oneOf, optStr, str } from "@/lib/form";
+import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/i18n/config";
+import { getI18n } from "@/lib/i18n/server";
 import type { Role, SupplyCategory, SupplyUnit, TaskCategory, TaskFrequency } from "@/lib/types";
 import type { FormState } from "./auth";
 
@@ -19,14 +21,15 @@ const FREQUENCIES: TaskFrequency[] = ["weekly", "monthly", "as_needed"];
 
 export async function createCity(_prev: FormState, form: FormData): Promise<FormState> {
   await requireAdmin();
+  const { t } = await getI18n();
   const name = str(form, "name");
-  if (!name) return { error: "Введите название города" };
+  if (!name) return { error: t("admin.cityName") };
   const store = db();
   const cities = await store.select("cities");
-  if (cities.some((c) => c.name.toLowerCase() === name.toLowerCase())) return { error: "Такой город уже есть" };
+  if (cities.some((c) => c.name.toLowerCase() === name.toLowerCase())) return { error: t("admin.cityExists") };
   await store.insert("cities", [{ id: newId(), name, sort_order: cities.length, created_at: nowISO() }]);
   refresh();
-  return { ok: `Город «${name}» добавлен` };
+  return { ok: t("admin.cityAdded", { name }) };
 }
 
 // ---------------------------------------------------------------- offices
@@ -43,13 +46,14 @@ function officeFields(form: FormData) {
 }
 
 async function validateOffice(fields: ReturnType<typeof officeFields>, officeId?: string): Promise<string | null> {
-  if (!fields.name) return "Введите название офиса";
+  const { t } = await getI18n();
+  if (!fields.name) return t("admin.officeName");
   const store = db();
   const [city] = await store.select("cities", { eq: { id: fields.city_id } });
-  if (!city) return "Выберите город";
+  if (!city) return t("admin.chooseCity");
   const same = await store.select("offices", { eq: { city_id: fields.city_id } });
   if (same.some((o) => o.id !== officeId && o.name.toLowerCase() === fields.name.toLowerCase())) {
-    return `В городе ${city.name} уже есть «${fields.name}»`;
+    return t("admin.officeExists", { city: city.name, name: fields.name });
   }
   return null;
 }
@@ -102,8 +106,9 @@ export async function saveTask(_prev: FormState, form: FormData): Promise<FormSt
   await requireAdmin();
   const id = str(form, "id");
   const officeId = str(form, "office_id");
+  const { t } = await getI18n();
   const name = str(form, "name");
-  if (!name) return { error: "Введите название задачи" };
+  if (!name) return { error: t("admin.taskName") };
   const frequency = oneOf(str(form, "frequency"), FREQUENCIES, "weekly");
   const fields = {
     name,
@@ -120,7 +125,7 @@ export async function saveTask(_prev: FormState, form: FormData): Promise<FormSt
     await store.insert("tasks", [{ id: newId(), office_id: officeId, ...fields, active: true, sort_order: existing.length }]);
   }
   refresh();
-  return { ok: id ? "Задача сохранена" : "Задача добавлена" };
+  return { ok: t(id ? "admin.taskSaved" : "admin.taskAdded") };
 }
 
 /** Tasks already used in visits are switched off rather than deleted, so history stays complete. */
@@ -146,10 +151,11 @@ export async function addOfficeSupply(_prev: FormState, form: FormData): Promise
   await requireAdmin();
   const officeId = str(form, "office_id");
   const supplyId = str(form, "supply_id");
-  if (!supplyId) return { error: "Выберите материал" };
+  const { t } = await getI18n();
+  if (!supplyId) return { error: t("admin.chooseSupply") };
   const store = db();
   const existing = await store.select("office_supplies", { eq: { office_id: officeId } });
-  if (existing.some((s) => s.supply_id === supplyId)) return { error: "Этот материал уже есть в офисе" };
+  if (existing.some((s) => s.supply_id === supplyId)) return { error: t("admin.supplyInOffice") };
   await store.insert("office_supplies", [
     {
       id: newId(),
@@ -165,7 +171,7 @@ export async function addOfficeSupply(_prev: FormState, form: FormData): Promise
     },
   ]);
   refresh();
-  return { ok: "Материал добавлен" };
+  return { ok: t("admin.supplyAdded") };
 }
 
 export async function removeOfficeSupply(form: FormData) {
@@ -186,11 +192,12 @@ export async function removeOfficeSupply(form: FormData) {
 
 export async function createSupply(_prev: FormState, form: FormData): Promise<FormState> {
   await requireAdmin();
+  const { t } = await getI18n();
   const name = str(form, "name");
-  if (!name) return { error: "Введите название" };
+  if (!name) return { error: t("admin.enterName") };
   const store = db();
   const all = await store.select("supplies");
-  if (all.some((s) => s.name.toLowerCase() === name.toLowerCase())) return { error: "Такой материал уже есть" };
+  if (all.some((s) => s.name.toLowerCase() === name.toLowerCase())) return { error: t("admin.supplyExists") };
   await store.insert("supplies", [
     {
       id: newId(),
@@ -202,14 +209,15 @@ export async function createSupply(_prev: FormState, form: FormData): Promise<Fo
     },
   ]);
   refresh();
-  return { ok: `«${name}» добавлен в список` };
+  return { ok: t("admin.supplyCreated", { name }) };
 }
 
 export async function updateSupply(_prev: FormState, form: FormData): Promise<FormState> {
   await requireAdmin();
+  const { t } = await getI18n();
   const id = str(form, "id");
   const name = str(form, "name");
-  if (!name) return { error: "Введите название" };
+  if (!name) return { error: t("admin.enterName") };
   await db().update(
     "supplies",
     { eq: { id } },
@@ -221,20 +229,27 @@ export async function updateSupply(_prev: FormState, form: FormData): Promise<Fo
     },
   );
   refresh();
-  return { ok: "Сохранено" };
+  return { ok: t("admin.saved") };
 }
 
 // ---------------------------------------------------------------- employees
 
 export async function createEmployee(_prev: FormState, form: FormData): Promise<FormState> {
   await requireAdmin();
+  const { t } = await getI18n();
   const name = str(form, "name");
   const email = str(form, "email");
-  if (!name || !email) return { error: "Введите имя и email" };
+  if (!name || !email) return { error: t("admin.nameEmail") };
   try {
-    await createAccount({ name, email, password: String(form.get("password") ?? ""), role: oneOf<Role>(str(form, "role"), ["admin", "employee"], "employee") });
+    await createAccount({
+      name,
+      email,
+      password: String(form.get("password") ?? ""),
+      role: oneOf<Role>(str(form, "role"), ["admin", "employee"], "employee"),
+      locale: oneOf<Locale>(str(form, "locale"), LOCALES, DEFAULT_LOCALE),
+    });
   } catch (e) {
-    if (e instanceof AccountError) return { error: e.message };
+    if (e instanceof AccountError) return { error: accountErrorText(e, t) };
     throw e;
   }
   redirect("/admin/employees");
@@ -242,24 +257,26 @@ export async function createEmployee(_prev: FormState, form: FormData): Promise<
 
 export async function updateEmployee(_prev: FormState, form: FormData): Promise<FormState> {
   const admin = await requireAdmin();
+  const { t } = await getI18n();
   const id = str(form, "id");
   const name = str(form, "name");
-  if (!name) return { error: "Введите имя" };
+  if (!name) return { error: t("admin.personName") };
   const role = oneOf<Role>(str(form, "role"), ["admin", "employee"], "employee");
   const active = bool(form, "active");
+  const locale = oneOf<Locale>(str(form, "locale"), LOCALES, DEFAULT_LOCALE);
   if (id === admin.id && (role !== "admin" || !active)) {
-    return { error: "Нельзя снять права администратора или отключить самого себя" };
+    return { error: t("admin.selfLock") };
   }
-  await db().update("profiles", { eq: { id } }, { name, role, active });
+  await db().update("profiles", { eq: { id } }, { name, role, active, locale });
   const password = String(form.get("password") ?? "");
   if (password) {
     try {
       await setPassword(id, password);
     } catch (e) {
-      if (e instanceof AccountError) return { error: e.message };
+      if (e instanceof AccountError) return { error: accountErrorText(e, t) };
       throw e;
     }
   }
   refresh();
-  return { ok: password ? "Сохранено, пароль обновлён" : "Сохранено" };
+  return { ok: t(password ? "admin.savedPassword" : "admin.saved") };
 }

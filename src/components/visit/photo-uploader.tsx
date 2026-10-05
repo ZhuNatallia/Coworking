@@ -3,6 +3,7 @@
 import { Camera, X } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { removePhoto, uploadPhoto } from "@/app/actions/visits";
+import { useI18n } from "@/lib/i18n/client";
 
 const MAX_SIDE = 1600;
 
@@ -20,6 +21,7 @@ async function resize(file: File): Promise<Blob> {
 }
 
 export function PhotoUploader({ visitId, photos }: { visitId: string; photos: { id: string }[] }) {
+  const { t } = useI18n();
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -34,7 +36,7 @@ export function PhotoUploader({ visitId, photos }: { visitId: string; photos: { 
         const data = new FormData();
         data.set("visit_id", visitId);
         data.set("photo", new File([blob], "photo.jpg", { type: blob.type || "image/jpeg" }));
-        const res = await uploadPhoto(data).catch(() => ({ error: "Не удалось загрузить фото" }));
+        const res = await uploadPhoto(data).catch(() => ({ error: t("photos.failed") }));
         if (res.error) {
           setError(res.error);
           break;
@@ -46,17 +48,17 @@ export function PhotoUploader({ visitId, photos }: { visitId: string; photos: { 
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-sm font-medium text-muted">Фото (по желанию)</span>
+      <span className="text-sm font-medium text-muted">{t("photos.label")}</span>
       <div className="grid grid-cols-3 gap-2">
         {photos.map((p) => (
           <div key={p.id} className="relative aspect-square overflow-hidden rounded-xl bg-canvas">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`/api/photos/${p.id}`} alt="Фото визита" className="size-full object-cover" />
+            <img src={`/api/photos/${p.id}`} alt={t("photos.alt")} className="size-full object-cover" />
             <button
               type="button"
               onClick={() => startTransition(() => removePhoto(p.id))}
               className="absolute right-1 top-1 flex size-7 items-center justify-center rounded-full bg-black/55 text-white"
-              aria-label="Удалить фото"
+              aria-label={t("photos.remove")}
             >
               <X className="size-4" />
             </button>
@@ -69,7 +71,7 @@ export function PhotoUploader({ visitId, photos }: { visitId: string; photos: { 
           className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-line text-sm text-muted"
         >
           <Camera className="size-6" />
-          {pending ? "Загрузка…" : "Добавить"}
+          {pending ? t("photos.uploading") : t("photos.add")}
         </button>
       </div>
       <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => onFiles(e.target.files)} />

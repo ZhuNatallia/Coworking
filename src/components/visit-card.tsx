@@ -1,12 +1,20 @@
 import { Clock, MapPin, UserRound } from "lucide-react";
 import { Card, LinkButton, VisitBadge } from "@/components/ui";
+import { getI18n } from "@/lib/i18n/server";
 import { officeLabel, visitPeople, type Refs } from "@/lib/queries";
 import type { Visit } from "@/lib/types";
 
-export function VisitCard({ visit, refs, today, canWork }: { visit: Visit; refs: Refs; today: string; canWork: boolean }) {
+export async function VisitCard({ visit, refs, today, canWork }: { visit: Visit; refs: Refs; today: string; canWork: boolean }) {
+  const { t } = await getI18n();
   const office = refs.offices.get(visit.office_id);
   const action =
-    visit.status === "done" ? "Посмотреть отчёт" : visit.status === "in_progress" ? "Продолжить визит" : canWork ? "Открыть визит" : "Подробнее";
+    visit.status === "done"
+      ? t("visitCard.report")
+      : visit.status === "in_progress"
+        ? t("visitCard.continue")
+        : canWork
+          ? t("visitCard.open")
+          : t("visitCard.details");
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex items-start gap-3">
@@ -28,7 +36,7 @@ export function VisitCard({ visit, refs, today, canWork }: { visit: Visit; refs:
         )}
         <span className="inline-flex items-center gap-1.5">
           <UserRound className="size-4" />
-          Ответственный: <span className="text-ink">{visitPeople(refs, visit)}</span>
+          {t("visitCard.responsible")} <span className="text-ink">{visitPeople(refs, visit, t)}</span>
         </span>
       </div>
       <LinkButton href={`/visits/${visit.id}`} variant={visit.status === "done" ? "outline" : "primary"}>

@@ -4,19 +4,9 @@ import { Tabs } from "@/components/tabs";
 import { Card, cx, displayVisitStatus, EmptyState, Page, PageHeader, VisitBadge } from "@/components/ui";
 import { VisitCard } from "@/components/visit-card";
 import { requireUser } from "@/lib/auth/current";
-import {
-  addDays,
-  addMonths,
-  endOfMonth,
-  formatDayMonth,
-  formatMonthYear,
-  formatWeekdayDayMonth,
-  isValidISODate,
-  startOfMonth,
-  startOfWeek,
-  todayISO,
-  WEEKDAY_SHORT,
-} from "@/lib/dates";
+import { addDays, addMonths, endOfMonth, isValidISODate, startOfMonth, startOfWeek, todayISO } from "@/lib/dates";
+import type { I18n } from "@/lib/i18n/core";
+import { getI18n } from "@/lib/i18n/server";
 import { canWorkOnVisit, loadRefs, visitPeople, visitsInRange, type Refs } from "@/lib/queries";
 import type { Profile, Visit, VisitStatus } from "@/lib/types";
 
@@ -30,30 +20,34 @@ const DOT: Record<VisitStatus, string> = {
   skipped: "bg-danger-700",
 };
 
+const WEEK = [1, 2, 3, 4, 5, 6, 7];
+
 function href(view: View, date: string) {
   return `/calendar?view=${view}&date=${date}`;
 }
 
-function range(view: View, date: string): { from: string; to: string; prev: string; next: string; title: string } {
+function range(view: View, date: string, { fmt }: I18n): { from: string; to: string; prev: string; next: string; title: string } {
   if (view === "day") {
-    return { from: date, to: date, prev: addDays(date, -1), next: addDays(date, 1), title: formatWeekdayDayMonth(date) };
+    return { from: date, to: date, prev: addDays(date, -1), next: addDays(date, 1), title: fmt.weekdayDayMonth(date) };
   }
   if (view === "week") {
     const from = startOfWeek(date);
     const to = addDays(from, 6);
-    return { from, to, prev: addDays(from, -7), next: addDays(from, 7), title: `${formatDayMonth(from)} — ${formatDayMonth(to)}` };
+    return { from, to, prev: addDays(from, -7), next: addDays(from, 7), title: `${fmt.dayMonth(from)} — ${fmt.dayMonth(to)}` };
   }
   const from = startOfMonth(date);
-  return { from, to: endOfMonth(date), prev: addMonths(date, -1), next: addMonths(date, 1), title: formatMonthYear(date) };
+  return { from, to: endOfMonth(date), prev: addMonths(date, -1), next: addMonths(date, 1), title: fmt.monthYear(date) };
 }
 
 export default async function CalendarPage(props: PageProps<"/calendar">) {
   const user = await requireUser();
+  const i18n = await getI18n();
+  const { t } = i18n;
   const sp = await props.searchParams;
   const view: View = VIEWS.find((v) => v === sp.view) ?? "week";
   const today = todayISO();
   const date = isValidISODate(sp.date) ? sp.date : today;
-  const r = range(view, date);
+  const r = range(view, date, i18n);
   const refs = await loadRefs();
   const visits = await visitsInRange(user, view === "month" ? startOfWeek(r.from) : r.from, view === "month" ? addDays(startOfWeek(r.to), 6) : r.to);
   const admin = user.role === "admin";
@@ -61,8 +55,8 @@ export default async function CalendarPage(props: PageProps<"/calendar">) {
   return (
     <>
       <PageHeader
-        title="Календарь"
-        subtitle={admin ? "Все визиты" : "Мои визиты"}
+        title={t("calendar.title")}
+        subtitle={t(admin ? "calendar.allVisits" : "calendar.myVisits")}
         action={
           admin && (
             <Link
@@ -70,7 +64,7 @@ export default async function CalendarPage(props: PageProps<"/calendar">) {
               className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 text-sm font-semibold text-white"
             >
               <Plus className="size-4" />
-              Визит
+              {t("calendar.newVisit")}
             </Link>
           )
         }
@@ -79,36 +73,36 @@ export default async function CalendarPage(props: PageProps<"/calendar">) {
         <Tabs
           active={view}
           tabs={[
-            { key: "day", label: "День", href: href("day", date) },
-            { key: "week", label: "Неделя", href: href("week", date) },
-            { key: "month", label: "Месяц", href: href("month", date) },
+            { key: "day", label: t("calendar.day"), href: href("day", date) },
+            { key: "week", label: t("calendar.week"), href: href("week", date) },
+            { key: "month", label: t("calendar.month"), href: href("month", date) },
           ]}
         />
         <div className="flex items-center gap-2">
-          <Link href={href(view, r.prev)} aria-label="Назад" className="flex size-10 items-center justify-center rounded-full bg-white shadow-[inset_0_0_0_1px_var(--color-line)]">
+          <Link href={href(view, r.prev)} aria-label={t("common.back")} className="flex size-10 items-center justify-center rounded-full bg-white shadow-[inset_0_0_0_1px_var(--color-line)]">
             <ChevronLeft className="size-5" />
           </Link>
           <p className="flex-1 text-center font-semibold">{r.title}</p>
-          <Link href={href(view, r.next)} aria-label="Вперёд" className="flex size-10 items-center justify-center rounded-full bg-white shadow-[inset_0_0_0_1px_var(--color-line)]">
+          <Link href={href(view, r.next)} aria-label={t("common.forward")} className="flex size-10 items-center justify-center rounded-full bg-white shadow-[inset_0_0_0_1px_var(--color-line)]">
             <ChevronRight className="size-5" />
           </Link>
         </div>
         {(today < r.from || today > r.to) && (
           <Link href={href(view, today)} className="-mt-2 self-center text-sm font-medium text-brand-600">
-            Вернуться к сегодняшнему дню
+            {t("calendar.backToToday")}
           </Link>
         )}
 
-        {view === "day" && <DayView visits={visits} refs={refs} today={today} user={user} />}
-        {view === "week" && <WeekView from={r.from} visits={visits} refs={refs} today={today} />}
-        {view === "month" && <MonthView month={r.from} visits={visits} today={today} />}
+        {view === "day" && <DayView visits={visits} refs={refs} today={today} user={user} i18n={i18n} />}
+        {view === "week" && <WeekView from={r.from} visits={visits} refs={refs} today={today} i18n={i18n} />}
+        {view === "month" && <MonthView month={r.from} visits={visits} today={today} i18n={i18n} />}
       </Page>
     </>
   );
 }
 
-function DayView({ visits, refs, today, user }: { visits: Visit[]; refs: Refs; today: string; user: Profile }) {
-  if (!visits.length) return <EmptyState>В этот день визитов нет.</EmptyState>;
+function DayView({ visits, refs, today, user, i18n }: { visits: Visit[]; refs: Refs; today: string; user: Profile; i18n: I18n }) {
+  if (!visits.length) return <EmptyState>{i18n.t("calendar.noVisitsDay")}</EmptyState>;
   return (
     <>
       {visits.map((v) => (
@@ -118,8 +112,8 @@ function DayView({ visits, refs, today, user }: { visits: Visit[]; refs: Refs; t
   );
 }
 
-function WeekView({ from, visits, refs, today }: { from: string; visits: Visit[]; refs: Refs; today: string }) {
-  const days = Array.from({ length: 7 }, (_, i) => addDays(from, i));
+function WeekView({ from, visits, refs, today, i18n: { t, fmt } }: { from: string; visits: Visit[]; refs: Refs; today: string; i18n: I18n }) {
+  const days = WEEK.map((_, i) => addDays(from, i));
   return (
     <Card className="divide-y divide-line p-0">
       {days.map((d, i) => {
@@ -134,11 +128,11 @@ function WeekView({ from, visits, refs, today }: { from: string; visits: Visit[]
                 isToday ? "bg-brand-600 text-white" : "bg-canvas text-ink",
               )}
             >
-              <span className={cx("text-xs", isToday ? "text-white/80" : "text-muted")}>{WEEKDAY_SHORT[i]}</span>
+              <span className={cx("text-xs", isToday ? "text-white/80" : "text-muted")}>{fmt.weekdayShort(i + 1)}</span>
               <span className="text-lg font-semibold leading-tight">{Number(d.slice(8))}</span>
             </Link>
             <div className="flex min-w-0 flex-1 flex-col gap-2 self-center">
-              {list.length === 0 && <p className="text-sm text-muted">Нет визитов</p>}
+              {list.length === 0 && <p className="text-sm text-muted">{t("calendar.noVisits")}</p>}
               {list.map((v) => {
                 const office = refs.offices.get(v.office_id);
                 const status = displayVisitStatus(v.status, v.scheduled_date, today);
@@ -147,12 +141,12 @@ function WeekView({ from, visits, refs, today }: { from: string; visits: Visit[]
                     <span className={cx("size-2 shrink-0 rounded-full", DOT[status.tone])} aria-hidden />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[15px] font-medium">
-                        {office?.name ?? "Офис"}
+                        {office?.name ?? t("common.office")}
                         <span className="font-normal text-muted"> · {office ? refs.cities.get(office.city_id)?.name : ""}</span>
                       </p>
                       <p className="truncate text-sm text-muted">
                         {v.time && `${v.time} · `}
-                        {visitPeople(refs, v)}
+                        {visitPeople(refs, v, t)}
                       </p>
                     </div>
                     {status.tone !== "planned" && <VisitBadge status={v.status} date={v.scheduled_date} today={today} />}
@@ -167,7 +161,7 @@ function WeekView({ from, visits, refs, today }: { from: string; visits: Visit[]
   );
 }
 
-function MonthView({ month, visits, today }: { month: string; visits: Visit[]; today: string }) {
+function MonthView({ month, visits, today, i18n: { t, fmt } }: { month: string; visits: Visit[]; today: string; i18n: I18n }) {
   const first = startOfWeek(month);
   const last = addDays(startOfWeek(endOfMonth(month)), 6);
   const days: string[] = [];
@@ -177,9 +171,9 @@ function MonthView({ month, visits, today }: { month: string; visits: Visit[]; t
   return (
     <Card className="p-2">
       <div className="grid grid-cols-7 text-center text-xs font-medium text-muted">
-        {WEEKDAY_SHORT.map((d) => (
+        {WEEK.map((d) => (
           <span key={d} className="py-1.5">
-            {d}
+            {fmt.weekdayShort(d)}
           </span>
         ))}
       </div>
@@ -192,7 +186,7 @@ function MonthView({ month, visits, today }: { month: string; visits: Visit[]; t
             <Link
               key={d}
               href={href("day", d)}
-              aria-label={`${formatDayMonth(d)}: визитов ${list.length}`}
+              aria-label={t("calendar.dayVisits", { date: fmt.dayMonth(d), count: list.length })}
               className={cx(
                 "flex aspect-square flex-col items-center justify-center gap-1 rounded-xl text-sm",
                 isToday ? "bg-brand-600 font-semibold text-white" : list.length ? "bg-brand-50" : "",
@@ -213,10 +207,9 @@ function MonthView({ month, visits, today }: { month: string; visits: Visit[]; t
         })}
       </div>
       <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 px-2 pb-1 text-xs text-muted">
-        <Legend tone="planned" label="Запланировано" />
-        <Legend tone="in_progress" label="В процессе" />
-        <Legend tone="done" label="Выполнено" />
-        <Legend tone="skipped" label="Пропущено" />
+        {(["planned", "in_progress", "done", "skipped"] as const).map((tone) => (
+          <Legend key={tone} tone={tone} label={t(`visitStatus.${tone}`)} />
+        ))}
       </div>
     </Card>
   );

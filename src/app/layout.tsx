@@ -1,18 +1,23 @@
 import type { Metadata, Viewport } from "next";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { I18nProvider } from "@/lib/i18n/client";
+import { getI18n, getLocale } from "@/lib/i18n/server";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "OfficeCare",
-  description: "Чистые офисы. Комфортная работа.",
-  applicationName: "OfficeCare",
-  appleWebApp: {
-    capable: true,
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return {
     title: "OfficeCare",
-    statusBarStyle: "default",
-  },
-  formatDetection: { telephone: false },
-};
+    description: `${t("app.tagline1")} ${t("app.tagline2")}`,
+    applicationName: "OfficeCare",
+    appleWebApp: {
+      capable: true,
+      title: "OfficeCare",
+      statusBarStyle: "default",
+    },
+    formatDetection: { telephone: false },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#267549",
@@ -21,11 +26,12 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const locale = await getLocale();
   return (
-    <html lang="ru" className="h-full antialiased">
+    <html lang={locale} className="h-full antialiased">
       <body className="min-h-full">
-        {children}
+        <I18nProvider locale={locale}>{children}</I18nProvider>
         <ServiceWorkerRegister />
       </body>
     </html>

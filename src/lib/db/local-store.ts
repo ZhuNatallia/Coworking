@@ -24,6 +24,7 @@ const TABLES: (TableName | "local_credentials")[] = [
   "supply_requests",
   "photos",
   "app_settings",
+  "translations",
   "local_credentials",
 ];
 
@@ -39,7 +40,7 @@ function emptyData(): LocalData {
 function load(): LocalData {
   const mtime = fs.existsSync(DB_FILE) ? fs.statSync(DB_FILE).mtimeMs : 0;
   const cached = globalForDb.__officecareLocal;
-  if (cached && cached.mtime === mtime) return cached.data;
+  if (cached && cached.mtime === mtime && TABLES.every((t) => t in cached.data)) return cached.data;
   const data = emptyData();
   if (mtime) {
     const parsed = JSON.parse(fs.readFileSync(DB_FILE, "utf8")) as Partial<LocalData>;

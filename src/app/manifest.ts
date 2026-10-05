@@ -4,8 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "OfficeCare",
     short_name: "OfficeCare",
-    description: "Обслуживание офисов: визиты, чек-листы и расходные материалы",
-    lang: "ru",
+    description: "Office care: visits, checklists and supplies",
     start_url: "/",
     scope: "/",
     display: "standalone",

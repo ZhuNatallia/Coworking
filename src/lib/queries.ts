@@ -1,7 +1,10 @@
 import { cache } from "react";
 import { addDays, todayISO } from "@/lib/dates";
 import { db } from "@/lib/db";
-import type { City, Office, Profile, Schedule, Supply, SupplyRequest, Visit } from "@/lib/types";
+import { translator } from "@/lib/i18n/content";
+import type { T } from "@/lib/i18n/core";
+import { getLocale } from "@/lib/i18n/server";
+import type { City, Office, Profile, Schedule, Supply, SupplyRequest, Task, Visit } from "@/lib/types";
 
 export interface Refs {
   profiles: Map<string, Profile>;
@@ -10,26 +13,40 @@ export interface Refs {
   supplies: Map<string, Supply>;
 }
 
-/** Small reference tables, loaded once per request. */
+/** Small reference tables, loaded once per request. Supply names are in the reader's language. */
 export const loadRefs = cache(async (): Promise<Refs> => {
   const store = db();
-  const [profiles, cities, offices, supplies] = await Promise.all([
+  const [profiles, cities, offices, supplies, locale] = await Promise.all([
     store.select("profiles", {}, [{ column: "name" }]),
     store.select("cities", {}, [{ column: "sort_order" }, { column: "name" }]),
     store.select("offices", {}, [{ column: "name" }]),
     store.select("supplies", {}, [{ column: "sort_order" }, { column: "name" }]),
+    getLocale(),
   ]);
+  const tr = await translator(
+    supplies.map((s) => s.name),
+    locale,
+  );
   return {
     profiles: new Map(profiles.map((p) => [p.id, p])),
     cities: new Map(cities.map((c) => [c.id, c])),
     offices: new Map(offices.map((o) => [o.id, o])),
-    supplies: new Map(supplies.map((s) => [s.id, s])),
+    supplies: new Map(supplies.map((s) => [s.id, { ...s, name: tr(s.name) }])),
   };
 });
 
+/** Task names and done labels in the reader's language. */
+export async function localizeTasks<T extends Pick<Task, "name" | "done_label">>(tasks: T[]): Promise<T[]> {
+  const tr = await translator(
+    tasks.flatMap((t) => [t.name, t.done_label]),
+    await getLocale(),
+  );
+  return tasks.map((t) => ({ ...t, name: tr(t.name), done_label: t.done_label ? tr(t.done_label) : t.done_label }));
+}
+
 export function officeLabel(refs: Refs, officeId: string): string {
   const office = refs.offices.get(officeId);
-  if (!office) return "Офис";
+  if (!office) return "—";
   const city = refs.cities.get(office.city_id);
   return city ? `${city.name} — ${office.name}` : office.name;
 }
@@ -38,11 +55,11 @@ export function shortAddress(address: string): string {
   return address.split(",")[0];
 }
 
-export function visitPeople(refs: Refs, v: Pick<Visit, "employee_1_id" | "employee_2_id">): string {
+export function visitPeople(refs: Refs, v: Pick<Visit, "employee_1_id" | "employee_2_id">, t: T): string {
   return [v.employee_1_id, v.employee_2_id]
     .filter(Boolean)
     .map((id) => refs.profiles.get(id!)?.name ?? "—")
-    .join(" + ") || "Не назначен";
+    .join(" + ") || t("visitCard.unassigned");
 }
 
 export function isMyVisit(user: Profile, v: Pick<Visit, "employee_1_id" | "employee_2_id">): boolean {
@@ -132,16 +149,16 @@ export async function takeItems(
     .sort((a, b) => (a.nextVisit?.scheduled_date ?? "9999").localeCompare(b.nextVisit?.scheduled_date ?? "9999"));
 }
 
-export function scheduleSummary(s: Schedule, refs: Refs): string {
-  const name = (id: string | null) => (id ? refs.profiles.get(id)?.name ?? "—" : null);
-  const e1 = name(s.employee_1_id);
-  const e2 = name(s.employee_2_id);
-  if (s.recurrence === "pair") return `Вдвоём: ${e1} + ${e2}`;
-  if (s.recurrence === "alternate") return `По очереди: ${e1} / ${e2}`;
-  return e2 ? `${e1} (резерв: ${e2})` : `${e1}`;
+export function scheduleSummary(s: Schedule, refs: Refs, t: T): string {
+  const name = (id: string | null) => (id ? refs.profiles.get(id)?.name ?? "—" : "—");
+  const a = name(s.employee_1_id);
+  const b = name(s.employee_2_id);
+  if (s.recurrence === "pair") return t("schedule.summaryPair", { a, b });
+  if (s.recurrence === "alternate") return t("schedule.summaryAlternate", { a, b });
+  return s.employee_2_id ? t("schedule.summaryBackup", { a, b }) : a;
 }
 
-export function assignedFromSchedules(schedules: Schedule[], refs: Refs) {
+export function assignedFromSchedules(schedules: Schedule[], refs: Refs, t: T) {
   const people: { id: string; name: string; note: string }[] = [];
   for (const s of schedules.filter((x) => x.active)) {
     const push = (id: string | null, note: string) => {
@@ -149,14 +166,14 @@ export function assignedFromSchedules(schedules: Schedule[], refs: Refs) {
       people.push({ id, name: refs.profiles.get(id)?.name ?? "—", note });
     };
     if (s.recurrence === "weekly") {
-      push(s.employee_1_id, "основной");
-      push(s.employee_2_id, "резервный");
+      push(s.employee_1_id, t("office.roleMain"));
+      push(s.employee_2_id, t("office.roleBackup"));
     } else if (s.recurrence === "alternate") {
-      push(s.employee_1_id, "по очереди");
-      push(s.employee_2_id, "по очереди");
+      push(s.employee_1_id, t("office.roleAlternate"));
+      push(s.employee_2_id, t("office.roleAlternate"));
     } else {
-      push(s.employee_1_id, "вместе");
-      push(s.employee_2_id, "вместе");
+      push(s.employee_1_id, t("office.rolePair"));
+      push(s.employee_2_id, t("office.rolePair"));
     }
   }
   return people;

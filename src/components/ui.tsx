@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import { REQUEST_STATUS_LABEL, SUPPLY_STATUS_LABEL, VISIT_STATUS_LABEL } from "@/lib/labels";
-import type { RequestStatus, SupplyStatus, VisitStatus } from "@/lib/types";
+import { BackLink } from "./badges";
+import { cx } from "./ui-core";
 
-export function cx(...classes: (string | false | null | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
-}
+export { RequestBadge, SupplyBadge, VisitBadge } from "./badges";
+export { cx, displayVisitStatus, type DisplayVisitStatus } from "./ui-core";
 
 export function PageHeader({
   title,
@@ -22,11 +21,7 @@ export function PageHeader({
   return (
     <header className="pt-safe sticky top-0 z-20 border-b border-line bg-white/95 backdrop-blur">
       <div className="flex min-h-14 items-center gap-2 px-4 py-2">
-        {back && (
-          <Link href={back} aria-label="Назад" className="-ml-2 flex size-10 shrink-0 items-center justify-center rounded-full text-ink active:bg-canvas">
-            <ChevronLeft className="size-6" />
-          </Link>
-        )}
+        {back && <BackLink href={back} />}
         <div className={cx("min-w-0 flex-1", back && "text-center")}>
           <h1 className={cx("truncate font-bold text-ink", back ? "text-[17px]" : "text-2xl")}>{title}</h1>
           {subtitle && <p className="truncate text-sm text-muted">{subtitle}</p>}
@@ -85,39 +80,6 @@ export function LinkButton({
       {children}
     </Link>
   );
-}
-
-const visitBadge: Record<VisitStatus, string> = {
-  planned: "bg-canvas text-muted",
-  in_progress: "bg-warn-50 text-warn-700",
-  done: "bg-brand-50 text-brand-700",
-  skipped: "bg-danger-50 text-danger-700",
-};
-
-export function displayVisitStatus(status: VisitStatus, date: string, today: string): { label: string; tone: VisitStatus } {
-  if (status === "planned" && date < today) return { label: "Не выполнено", tone: "skipped" };
-  return { label: VISIT_STATUS_LABEL[status], tone: status };
-}
-
-export function VisitBadge({ status, date, today }: { status: VisitStatus; date?: string; today?: string }) {
-  const { label, tone } = date && today ? displayVisitStatus(status, date, today) : { label: VISIT_STATUS_LABEL[status], tone: status };
-  return <span className={cx("inline-flex shrink-0 items-center rounded-lg px-2.5 py-1 text-xs font-semibold", visitBadge[tone])}>{label}</span>;
-}
-
-const supplyBadge: Record<SupplyStatus, string> = {
-  ok: "bg-brand-50 text-brand-700",
-  low: "bg-warn-50 text-warn-700",
-  out: "bg-danger-50 text-danger-700",
-};
-
-export function SupplyBadge({ status }: { status: SupplyStatus | null }) {
-  if (!status) return <span className="rounded-lg bg-canvas px-2.5 py-1 text-xs font-semibold text-muted">Не отмечено</span>;
-  return <span className={cx("rounded-lg px-2.5 py-1 text-xs font-semibold", supplyBadge[status])}>{SUPPLY_STATUS_LABEL[status]}</span>;
-}
-
-export function RequestBadge({ status }: { status: RequestStatus }) {
-  const tone = status === "open" ? "bg-warn-50 text-warn-700" : status === "delivered" ? "bg-brand-50 text-brand-700" : "bg-canvas text-muted";
-  return <span className={cx("rounded-lg px-2.5 py-1 text-xs font-semibold", tone)}>{REQUEST_STATUS_LABEL[status]}</span>;
 }
 
 const AVATAR_COLORS = ["#2f8a57", "#c2410c", "#7c3aed", "#0369a1", "#be185d", "#4d7c0f", "#a16207"];

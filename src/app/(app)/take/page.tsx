@@ -4,8 +4,8 @@ import { DeliverButton, UndoButton } from "@/components/take-buttons";
 import { Tabs } from "@/components/tabs";
 import { Card, EmptyState, Page, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/current";
-import { dateOfTimestamp, formatDate, formatDateTime, formatWeekdayDayMonth } from "@/lib/dates";
-import { quantityLabel } from "@/lib/labels";
+import { dateOfTimestamp } from "@/lib/dates";
+import { getI18n } from "@/lib/i18n/server";
 import { takeItems, type TakeItem } from "@/lib/queries";
 
 function groupByOffice(items: TakeItem[]) {
@@ -16,6 +16,7 @@ function groupByOffice(items: TakeItem[]) {
 
 export default async function TakePage(props: PageProps<"/take">) {
   const user = await requireUser();
+  const { t, fmt } = await getI18n();
   const { tab } = await props.searchParams;
   const done = tab === "done";
   const items = await takeItems(user, { status: done ? "done" : "open" });
@@ -23,20 +24,18 @@ export default async function TakePage(props: PageProps<"/take">) {
 
   return (
     <>
-      <PageHeader title="Взять с собой" subtitle={admin ? "Все офисы" : "Мои офисы"} />
+      <PageHeader title={t("take.title")} subtitle={t(admin ? "take.allOffices" : "take.myOffices")} />
       <Page>
         <Tabs
           active={done ? "done" : "open"}
           tabs={[
-            { key: "open", label: "Актуальные", href: "/take" },
-            { key: "done", label: "Выполненные", href: "/take?tab=done" },
+            { key: "open", label: t("take.tabOpen"), href: "/take" },
+            { key: "done", label: t("take.tabDone"), href: "/take?tab=done" },
           ]}
         />
-        {!done && items.length > 0 && (
-          <p className="px-1 text-sm text-muted">Отметьте галочкой, когда привезёте материал в офис. Статус в офисе станет «Достаточно».</p>
-        )}
+        {!done && items.length > 0 && <p className="px-1 text-sm text-muted">{t("take.hint")}</p>}
         {items.length === 0 ? (
-          <EmptyState>{done ? "За последние 30 дней ничего не привозили." : "Ничего брать не нужно — всего достаточно."}</EmptyState>
+          <EmptyState>{t(done ? "take.emptyDone" : "take.emptyOpen")}</EmptyState>
         ) : done ? (
           <Card className="divide-y divide-line p-0">
             {items.map((item) => (
@@ -45,8 +44,8 @@ export default async function TakePage(props: PageProps<"/take">) {
                   <p className="font-medium">{item.supply.name}</p>
                   <p className="truncate text-sm text-muted">{item.officeLabel}</p>
                   <p className="text-xs text-muted">
-                    Привёз(ла) {item.completedByName ?? "—"}
-                    {item.request.completed_at && `, ${formatDateTime(item.request.completed_at)}`}
+                    {t("take.deliveredBy", { name: item.completedByName ?? "—" })}
+                    {item.request.completed_at && `, ${fmt.dateTime(item.request.completed_at)}`}
                   </p>
                 </div>
                 <UndoButton requestId={item.request.id} />
@@ -65,23 +64,23 @@ export default async function TakePage(props: PageProps<"/take">) {
                   {first.nextVisit && (
                     <Link href={`/visits/${first.nextVisit.id}`} className="inline-flex items-center gap-1 text-sm text-brand-600">
                       <CalendarDays className="size-4" />
-                      {formatWeekdayDayMonth(first.nextVisit.scheduled_date)}
+                      {fmt.weekdayDayMonth(first.nextVisit.scheduled_date)}
                     </Link>
                   )}
                 </div>
                 <Card className="divide-y divide-line p-0">
                   {group.map((item) => {
-                    const left = quantityLabel(item.request.quantity, item.supply.unit);
+                    const left = fmt.quantity(item.request.quantity, item.supply.unit);
                     return (
                       <div key={item.request.id} id={item.request.id} className="flex scroll-mt-20 items-start gap-3 px-4 py-3 target:bg-brand-50">
                         <DeliverButton requestId={item.request.id} label={item.supply.name} />
                         <div className="min-w-0 flex-1">
                           <p className="font-medium">{item.supply.name}</p>
                           <p className={`text-sm ${item.request.reason === "out" ? "text-danger-700" : "text-warn-700"}`}>
-                            {item.request.reason === "out" ? "Нет совсем" : `Заканчивается${left ? `, осталось ${left}` : ""}`}
+                            {item.request.reason === "out" ? t("take.out") : left ? t("take.lowLeft", { qty: left }) : t("take.low")}
                           </p>
                           <p className="text-xs text-muted">
-                            Отметил(а) {item.createdByName ?? "—"}, {formatDate(dateOfTimestamp(item.request.created_at))}
+                            {t("take.markedBy", { name: item.createdByName ?? "—", date: fmt.date(dateOfTimestamp(item.request.created_at)) })}
                           </p>
                         </div>
                       </div>

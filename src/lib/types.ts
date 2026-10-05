@@ -16,6 +16,8 @@ export interface Profile {
   role: Role;
   avatar: string | null;
   active: boolean;
+  /** App language: ru, en, de or ro. Missing on rows created before languages existed. */
+  locale?: string | null;
   created_at: string;
 }
 
@@ -152,6 +154,15 @@ export interface AppSetting {
   value: string;
 }
 
+/** Machine translation of user-entered text. id is a hash of the target language and the source text. */
+export interface Translation {
+  id: string;
+  lang: string;
+  source: string;
+  text: string;
+  created_at: string;
+}
+
 export interface Tables {
   profiles: Profile;
   cities: City;
@@ -166,6 +177,7 @@ export interface Tables {
   supply_requests: SupplyRequest;
   photos: Photo;
   app_settings: AppSetting;
+  translations: Translation;
 }
 
 export type TableName = keyof Tables;

@@ -64,59 +64,6 @@ export function isValidISODate(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(toUTC(value).getTime());
 }
 
-const ruFormat = (opts: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat("ru-RU", { timeZone: "UTC", ...opts });
-
-/** 03.09.2026 */
-export function formatDate(date: string): string {
-  return ruFormat({ day: "2-digit", month: "2-digit", year: "numeric" }).format(toUTC(date));
-}
-
-/** 3 сентября 2026 */
-export function formatDateLong(date: string): string {
-  return ruFormat({ day: "numeric", month: "long", year: "numeric" }).format(toUTC(date)).replace(" г.", "");
-}
-
-/** 3 сентября */
-export function formatDayMonth(date: string): string {
-  return ruFormat({ day: "numeric", month: "long" }).format(toUTC(date));
-}
-
-/** Четверг, 3 сентября */
-export function formatWeekdayDayMonth(date: string): string {
-  const s = ruFormat({ weekday: "long", day: "numeric", month: "long" }).format(toUTC(date));
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-/** сентябрь 2026 */
-export function formatMonthYear(date: string): string {
-  const s = ruFormat({ month: "long", year: "numeric" }).format(toUTC(date)).replace(" г.", "");
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-export const WEEKDAY_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-export const WEEKDAY_LONG = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
-export const WEEKDAY_EVERY = [
-  "Каждый понедельник",
-  "Каждый вторник",
-  "Каждую среду",
-  "Каждый четверг",
-  "Каждую пятницу",
-  "Каждую субботу",
-  "Каждое воскресенье",
-];
-
-export function formatDateTime(iso: string): string {
-  return new Intl.DateTimeFormat("ru-RU", {
-    timeZone: APP_TIME_ZONE,
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
-}
-
 export function dateOfTimestamp(iso: string): string {
   return todayISO(new Date(iso));
 }

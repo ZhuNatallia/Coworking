@@ -3,7 +3,8 @@
 import { Check } from "lucide-react";
 import { useState, useTransition } from "react";
 import { setTaskStatus } from "@/app/actions/visits";
-import { cx } from "@/components/ui";
+import { cx } from "@/components/ui-core";
+import { useI18n } from "@/lib/i18n/client";
 import type { TaskFrequency, VisitTaskStatus } from "@/lib/types";
 
 export interface TaskRowProps {
@@ -42,6 +43,7 @@ function Checkbox({ checked, label, onChange, disabled }: { checked: boolean; la
 }
 
 export function TaskRow({ id, name, doneLabel, frequency, required, status: initial }: TaskRowProps) {
+  const { t } = useI18n();
   const [status, setStatus] = useState(initial);
   const [error, setError] = useState(false);
   const [, startTransition] = useTransition();
@@ -66,16 +68,16 @@ export function TaskRow({ id, name, doneLabel, frequency, required, status: init
     <div className="flex flex-col gap-2.5 py-3">
       <div className="flex items-center gap-2">
         <p className="flex-1 font-semibold">{name}</p>
-        {frequency === "monthly" && <span className="rounded-lg bg-warn-50 px-2 py-0.5 text-xs font-semibold text-warn-700">Раз в месяц</span>}
-        {required && <span className="text-xs text-muted">обязательно</span>}
+        {frequency === "monthly" && <span className="rounded-lg bg-warn-50 px-2 py-0.5 text-xs font-semibold text-warn-700">{t("task.monthly")}</span>}
+        {required && <span className="text-xs text-muted">{t("task.required")}</span>}
       </div>
       {frequency === "as_needed" ? (
         <>
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={name}>
             {(
               [
-                ["not_needed", "Не требуется"],
-                ["needed", "Требуется"],
+                ["not_needed", t("task.notNeeded")],
+                ["needed", t("task.needed")],
               ] as const
             ).map(([value, text]) => {
               const active = value === "not_needed" ? status === "not_needed" : status === "needed" || status === "done";
@@ -103,7 +105,7 @@ export function TaskRow({ id, name, doneLabel, frequency, required, status: init
       ) : (
         <Checkbox checked={status === "done"} label={label} onChange={(v) => save(v ? "done" : "pending")} />
       )}
-      {error && <p className="text-sm text-danger-700">Не удалось сохранить. Проверьте интернет и попробуйте ещё раз.</p>}
+      {error && <p className="text-sm text-danger-700">{t("common.saveError")}</p>}
     </div>
   );
 }

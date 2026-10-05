@@ -4,15 +4,16 @@ import { AutoSubmitForm } from "@/components/auto-submit-form";
 import { Card, EmptyState, inputClass, Page, PageHeader, VisitBadge } from "@/components/ui";
 import { requireUser } from "@/lib/auth/current";
 import { db } from "@/lib/db";
-import { addDays, formatWeekdayDayMonth, todayISO } from "@/lib/dates";
+import { addDays, todayISO } from "@/lib/dates";
+import { getI18n } from "@/lib/i18n/server";
 import { loadRefs, myOfficeIds, officeLabel, visitPeople } from "@/lib/queries";
 import type { Visit } from "@/lib/types";
 
 const PERIODS = [
-  { key: "30", label: "30 дней", days: 30 },
-  { key: "90", label: "3 месяца", days: 90 },
-  { key: "365", label: "Год", days: 365 },
-  { key: "all", label: "Всё время", days: null },
+  { key: "30", label: "history.p30", days: 30 },
+  { key: "90", label: "history.p90", days: 90 },
+  { key: "365", label: "history.p365", days: 365 },
+  { key: "all", label: "history.pAll", days: null },
 ] as const;
 
 const LIMIT = 60;
@@ -23,6 +24,7 @@ function one(value: string | string[] | undefined): string {
 
 export default async function HistoryPage(props: PageProps<"/history">) {
   const user = await requireUser();
+  const { t, fmt } = await getI18n();
   const sp = await props.searchParams;
   const admin = user.role === "admin";
   const refs = await loadRefs();
@@ -71,9 +73,9 @@ export default async function HistoryPage(props: PageProps<"/history">) {
     : [[], [], []];
 
   const stats = (visitId: string) => {
-    const own = tasks.filter((t) => t.visit_id === visitId && t.status !== "not_needed");
+    const own = tasks.filter((vt) => vt.visit_id === visitId && vt.status !== "not_needed");
     return {
-      done: own.filter((t) => t.status === "done").length,
+      done: own.filter((vt) => vt.status === "done").length,
       total: own.length,
       photos: photos.filter((p) => p.visit_id === visitId).length,
       requested: requests
@@ -85,19 +87,19 @@ export default async function HistoryPage(props: PageProps<"/history">) {
 
   return (
     <>
-      <PageHeader title="История" subtitle="Прошлые визиты и отчёты" back="/more" />
+      <PageHeader title={t("history.title")} subtitle={t("history.subtitle")} back="/more" />
       <Page>
         <AutoSubmitForm action="/history" className="grid grid-cols-2 gap-2">
-          <select name="city" defaultValue={city} aria-label="Город" className={inputClass}>
-            <option value="">Все города</option>
+          <select name="city" defaultValue={city} aria-label={t("history.city")} className={inputClass}>
+            <option value="">{t("history.allCities")}</option>
             {cities.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
             ))}
           </select>
-          <select name="office" defaultValue={office} aria-label="Офис" className={inputClass}>
-            <option value="">Все офисы</option>
+          <select name="office" defaultValue={office} aria-label={t("history.office")} className={inputClass}>
+            <option value="">{t("history.allOffices")}</option>
             {offices
               .filter((o) => !city || o.city_id === city)
               .map((o) => (
@@ -106,16 +108,16 @@ export default async function HistoryPage(props: PageProps<"/history">) {
                 </option>
               ))}
           </select>
-          <select name="period" defaultValue={period.key} aria-label="Период" className={inputClass}>
+          <select name="period" defaultValue={period.key} aria-label={t("history.period")} className={inputClass}>
             {PERIODS.map((p) => (
               <option key={p.key} value={p.key}>
-                {p.label}
+                {t(p.label)}
               </option>
             ))}
           </select>
           {admin ? (
-            <select name="employee" defaultValue={employee} aria-label="Сотрудник" className={inputClass}>
-              <option value="">Все сотрудники</option>
+            <select name="employee" defaultValue={employee} aria-label={t("history.employee")} className={inputClass}>
+              <option value="">{t("history.allEmployees")}</option>
               {employees.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -127,22 +129,22 @@ export default async function HistoryPage(props: PageProps<"/history">) {
           )}
           <noscript>
             <button type="submit" className="col-span-2 min-h-12 rounded-xl bg-brand-600 font-semibold text-white">
-              Показать
+              {t("history.show")}
             </button>
           </noscript>
         </AutoSubmitForm>
 
         {(city || office || employee || period.key !== PERIODS[1].key) && (
           <div className="flex items-center justify-between px-1 text-sm">
-            <span className="text-muted">Найдено визитов: {visits.length}</span>
+            <span className="text-muted">{t("history.found", { count: visits.length })}</span>
             <Link href="/history" className="font-medium text-brand-600">
-              Сбросить фильтры
+              {t("history.reset")}
             </Link>
           </div>
         )}
 
         {shown.length === 0 ? (
-          <EmptyState>За выбранный период визитов нет.</EmptyState>
+          <EmptyState>{t("history.empty")}</EmptyState>
         ) : (
           <Card className="divide-y divide-line p-0">
             {shown.map((v) => {
@@ -151,9 +153,9 @@ export default async function HistoryPage(props: PageProps<"/history">) {
                 <Link key={v.id} href={`/visits/${v.id}?from=history`} className="flex flex-col gap-1 px-4 py-3 active:bg-canvas">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-semibold">{formatWeekdayDayMonth(v.scheduled_date)}</p>
+                      <p className="font-semibold">{fmt.weekdayDayMonth(v.scheduled_date)}</p>
                       <p className="truncate text-sm text-muted">
-                        {officeLabel(refs, v.office_id)} · {visitPeople(refs, v)}
+                        {officeLabel(refs, v.office_id)} · {visitPeople(refs, v, t)}
                       </p>
                     </div>
                     <VisitBadge status={v.status} date={v.scheduled_date} today={today} />
@@ -162,12 +164,12 @@ export default async function HistoryPage(props: PageProps<"/history">) {
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                       <span className="inline-flex items-center gap-1">
                         <CheckCircle2 className="size-3.5 text-brand-600" />
-                        {s.done} из {s.total} задач
+                        {t("history.tasks", { done: s.done, total: s.total })}
                       </span>
                       {s.photos > 0 && (
                         <span className="inline-flex items-center gap-1">
                           <Camera className="size-3.5" />
-                          {s.photos} фото
+                          {t("history.photos", { count: s.photos })}
                         </span>
                       )}
                       {s.requested.length > 0 && (
@@ -183,7 +185,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
             })}
           </Card>
         )}
-        {visits.length > LIMIT && <p className="text-center text-sm text-muted">Показаны последние {LIMIT}. Уточните фильтры, чтобы увидеть остальные.</p>}
+        {visits.length > LIMIT && <p className="text-center text-sm text-muted">{t("history.limited", { count: LIMIT })}</p>}
       </Page>
     </>
   );

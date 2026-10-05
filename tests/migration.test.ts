@@ -3,7 +3,12 @@ import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
 
-const MIGRATION = fs.readFileSync(path.join(__dirname, "..", "supabase", "migrations", "0001_init.sql"), "utf8");
+const MIGRATIONS_DIR = path.join(__dirname, "..", "supabase", "migrations");
+const MIGRATIONS = fs
+  .readdirSync(MIGRATIONS_DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => fs.readFileSync(path.join(MIGRATIONS_DIR, f), "utf8"));
 
 // Minimal stand-ins for the parts of Supabase the migration relies on.
 const SUPABASE_STUBS = `
@@ -34,7 +39,7 @@ async function as<T>(user: string, sql: string): Promise<T[]> {
 beforeAll(async () => {
   pg = new PGlite();
   await pg.exec(SUPABASE_STUBS);
-  await pg.exec(MIGRATION);
+  for (const sql of MIGRATIONS) await pg.exec(sql);
   await pg.exec(`
     grant usage on schema public, auth to authenticated;
     grant all on all tables in schema public to authenticated;
@@ -56,7 +61,19 @@ beforeAll(async () => {
   `);
 });
 
-describe("0001_init.sql", () => {
+describe("migrations", () => {
+  it("gives every profile a supported language", async () => {
+    const { rows } = await pg.query<{ locale: string }>("select distinct locale from profiles");
+    expect(rows.map((r) => r.locale)).toEqual(["ru"]);
+    await expect(pg.exec(`update profiles set locale = 'fr' where id = '${PETER}'`)).rejects.toThrow();
+  });
+
+  it("lets employees read translations but not write them", async () => {
+    await pg.exec(`insert into translations (id, lang, source, text) values ('h1', 'en', 'Кофе', 'Coffee')`);
+    expect(await as(PETER, "select text from translations")).toEqual([{ text: "Coffee" }]);
+    await expect(as(PETER, `insert into translations (id, lang, source, text) values ('h2', 'de', 'Чай', 'Tee')`)).rejects.toThrow();
+  });
+
   it("creates the photos bucket", async () => {
     const { rows } = await pg.query<{ id: string }>("select id from storage.buckets");
     expect(rows.map((r) => r.id)).toEqual(["photos"]);

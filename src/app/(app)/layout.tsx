@@ -1,4 +1,5 @@
 import { BottomNav } from "@/components/bottom-nav";
+import { LiveRefresh } from "@/components/live-refresh";
 import { requireUser } from "@/lib/auth/current";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -7,6 +8,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <div className="mx-auto min-h-screen max-w-[430px] bg-canvas sm:border-x sm:border-line sm:shadow-sm">
       {children}
       <BottomNav role={user.role} />
+      <LiveRefresh />
     </div>
   );
 }
