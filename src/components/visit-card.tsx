@@ -1,0 +1,39 @@
+import { Clock, MapPin, UserRound } from "lucide-react";
+import { Card, LinkButton, VisitBadge } from "@/components/ui";
+import { officeLabel, visitPeople, type Refs } from "@/lib/queries";
+import type { Visit } from "@/lib/types";
+
+export function VisitCard({ visit, refs, today, canWork }: { visit: Visit; refs: Refs; today: string; canWork: boolean }) {
+  const office = refs.offices.get(visit.office_id);
+  const action =
+    visit.status === "done" ? "Посмотреть отчёт" : visit.status === "in_progress" ? "Продолжить визит" : canWork ? "Открыть визит" : "Подробнее";
+  return (
+    <Card className="flex flex-col gap-3">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+          <MapPin className="size-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold leading-tight">{officeLabel(refs, visit.office_id)}</p>
+          {office?.address && <p className="truncate text-sm text-muted">{office.address}</p>}
+        </div>
+        <VisitBadge status={visit.status} date={visit.scheduled_date} today={today} />
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+        {visit.time && (
+          <span className="inline-flex items-center gap-1.5">
+            <Clock className="size-4" />
+            {visit.time}
+          </span>
+        )}
+        <span className="inline-flex items-center gap-1.5">
+          <UserRound className="size-4" />
+          Ответственный: <span className="text-ink">{visitPeople(refs, visit)}</span>
+        </span>
+      </div>
+      <LinkButton href={`/visits/${visit.id}`} variant={visit.status === "done" ? "outline" : "primary"}>
+        {action}
+      </LinkButton>
+    </Card>
+  );
+}
