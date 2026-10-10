@@ -1,4 +1,5 @@
 import { db, newId, nowISO } from "@/lib/db";
+import { deletePhoto } from "@/lib/photos";
 import type { SupplyRequest, SupplyStatus } from "@/lib/types";
 
 export type RequestAction =
@@ -52,6 +53,7 @@ export async function applySupplyStatus(opts: {
           reason: action.reason,
           status: "open",
           created_from_visit_id: opts.visitId,
+          note: null,
           created_by: opts.userId,
           created_at: now,
           completed_at: null,
@@ -64,6 +66,7 @@ export async function applySupplyStatus(opts: {
       break;
     case "delete":
       await store.remove("supply_requests", { eq: { id: action.id } });
+      await clearSupplyPhotos(opts.officeId, opts.supplyId);
       break;
     case "cancel":
       await store.update(
@@ -71,6 +74,7 @@ export async function applySupplyStatus(opts: {
         { eq: { id: action.id } },
         { status: "cancelled", completed_at: now, completed_by: opts.userId },
       );
+      await clearSupplyPhotos(opts.officeId, opts.supplyId);
       break;
     case "none":
       if (open && opts.quantity !== open.quantity) {
@@ -94,6 +98,17 @@ export async function markDelivered(request: SupplyRequest, userId: string, visi
   if (visitId) {
     await store.update("visit_supplies", { eq: { visit_id: visitId, supply_id: request.supply_id } }, { status: "ok", updated_at: now });
   }
+  await clearSupplyPhotos(request.office_id, request.supply_id);
+}
+
+/** Drops inspection photos once the shortage is resolved, so they do not stay on disk. */
+export async function clearSupplyPhotos(officeId: string, supplyId: string) {
+  const store = db();
+  const [row] = await store.select("office_supplies", { eq: { office_id: officeId, supply_id: supplyId } });
+  if (!row) return;
+  const photos = await store.select("photos", { eq: { office_supply_id: row.id } });
+  for (const photo of photos) await deletePhoto(photo.url);
+  if (photos.length) await store.remove("photos", { eq: { office_supply_id: row.id } });
 }
 
 /** Puts a delivered item back on the list (for accidental taps). */

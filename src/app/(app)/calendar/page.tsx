@@ -1,24 +1,21 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CalendarCheck, Check, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { DayMarkPicker } from "@/components/day-mark";
 import { Tabs } from "@/components/tabs";
-import { Card, cx, displayVisitStatus, EmptyState, Page, PageHeader, VisitBadge } from "@/components/ui";
+import { Card, cx, displayVisitStatus, EmptyState, Page, PageHeader, SectionTitle, VisitBadge } from "@/components/ui";
 import { VisitCard } from "@/components/visit-card";
 import { requireUser } from "@/lib/auth/current";
 import { addDays, addMonths, endOfMonth, isValidISODate, startOfMonth, startOfWeek, todayISO } from "@/lib/dates";
+import { db } from "@/lib/db";
 import type { I18n } from "@/lib/i18n/core";
 import { getI18n } from "@/lib/i18n/server";
+import { officeColorVars } from "@/lib/office-colors";
 import { canWorkOnVisit, loadRefs, visitPeople, visitsInRange, type Refs } from "@/lib/queries";
-import type { Profile, Visit, VisitStatus } from "@/lib/types";
+import type { DayMark, Profile, Visit } from "@/lib/types";
 
 const VIEWS = ["day", "week", "month"] as const;
 type View = (typeof VIEWS)[number];
-
-const DOT: Record<VisitStatus, string> = {
-  planned: "bg-brand-600",
-  in_progress: "bg-warn-700",
-  done: "bg-muted/70",
-  skipped: "bg-danger-700",
-};
+type MarkMap = Map<string, DayMark["status"]>;
 
 const WEEK = [1, 2, 3, 4, 5, 6, 7];
 
@@ -49,7 +46,10 @@ export default async function CalendarPage(props: PageProps<"/calendar">) {
   const date = isValidISODate(sp.date) ? sp.date : today;
   const r = range(view, date, i18n);
   const refs = await loadRefs();
-  const visits = await visitsInRange(user, view === "month" ? startOfWeek(r.from) : r.from, view === "month" ? addDays(startOfWeek(r.to), 6) : r.to);
+  const from = view === "month" ? startOfWeek(r.from) : r.from;
+  const to = view === "month" ? addDays(startOfWeek(r.to), 6) : r.to;
+  const [visits, todayVisits] = await Promise.all([visitsInRange(user, from, to), visitsInRange(user, today, today)]);
+  const marks: MarkMap = new Map((await db().select("day_marks", { gte: { id: from }, lte: { id: to } })).map((m) => [m.id, m.status]));
   const admin = user.role === "admin";
 
   return (
@@ -61,7 +61,7 @@ export default async function CalendarPage(props: PageProps<"/calendar">) {
           admin && (
             <Link
               href={`/visits/new?date=${view === "day" ? date : today}`}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 text-sm font-semibold text-white"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-brand-solid px-3.5 text-sm font-semibold text-white"
             >
               <Plus className="size-4" />
               {t("calendar.newVisit")}
@@ -70,6 +70,14 @@ export default async function CalendarPage(props: PageProps<"/calendar">) {
         }
       />
       <Page>
+        <section className="flex flex-col gap-2">
+          <SectionTitle icon={<CalendarCheck className="size-5" />}>{t("home.todaysVisits")}</SectionTitle>
+          {todayVisits.length === 0 ? (
+            <EmptyState>{t("home.noVisitsToday")}</EmptyState>
+          ) : (
+            todayVisits.map((v) => <VisitCard key={v.id} visit={v} refs={refs} today={today} canWork={canWorkOnVisit(user, v)} />)
+          )}
+        </section>
         <Tabs
           active={view}
           tabs={[
@@ -79,11 +87,11 @@ export default async function CalendarPage(props: PageProps<"/calendar">) {
           ]}
         />
         <div className="flex items-center gap-2">
-          <Link href={href(view, r.prev)} aria-label={t("common.back")} className="flex size-10 items-center justify-center rounded-full bg-white shadow-[inset_0_0_0_1px_var(--color-line)]">
+          <Link href={href(view, r.prev)} aria-label={t("common.back")} className="flex size-10 items-center justify-center rounded-full bg-surface shadow-[inset_0_0_0_1px_var(--color-line)]">
             <ChevronLeft className="size-5" />
           </Link>
           <p className="flex-1 text-center font-semibold">{r.title}</p>
-          <Link href={href(view, r.next)} aria-label={t("common.forward")} className="flex size-10 items-center justify-center rounded-full bg-white shadow-[inset_0_0_0_1px_var(--color-line)]">
+          <Link href={href(view, r.next)} aria-label={t("common.forward")} className="flex size-10 items-center justify-center rounded-full bg-surface shadow-[inset_0_0_0_1px_var(--color-line)]">
             <ChevronRight className="size-5" />
           </Link>
         </div>
@@ -93,43 +101,63 @@ export default async function CalendarPage(props: PageProps<"/calendar">) {
           </Link>
         )}
 
-        {view === "day" && <DayView visits={visits} refs={refs} today={today} user={user} i18n={i18n} />}
-        {view === "week" && <WeekView from={r.from} visits={visits} refs={refs} today={today} i18n={i18n} />}
-        {view === "month" && <MonthView month={r.from} visits={visits} today={today} i18n={i18n} />}
+        {view === "day" && <DayView date={date} mark={marks.get(date) ?? null} visits={visits} refs={refs} today={today} user={user} i18n={i18n} />}
+        {view === "week" && <WeekView from={r.from} visits={visits} marks={marks} refs={refs} today={today} i18n={i18n} />}
+        {view === "month" && <MonthView month={r.from} visits={visits} marks={marks} today={today} i18n={i18n} />}
       </Page>
     </>
   );
 }
 
-function DayView({ visits, refs, today, user, i18n }: { visits: Visit[]; refs: Refs; today: string; user: Profile; i18n: I18n }) {
-  if (!visits.length) return <EmptyState>{i18n.t("calendar.noVisitsDay")}</EmptyState>;
+function DayView({
+  date,
+  mark,
+  visits,
+  refs,
+  today,
+  user,
+  i18n,
+}: {
+  date: string;
+  mark: DayMark["status"] | null;
+  visits: Visit[];
+  refs: Refs;
+  today: string;
+  user: Profile;
+  i18n: I18n;
+}) {
   return (
     <>
-      {visits.map((v) => (
-        <VisitCard key={v.id} visit={v} refs={refs} today={today} canWork={canWorkOnVisit(user, v)} />
-      ))}
+      <DayMarkPicker date={date} status={mark} />
+      {date !== today && visits.length === 0 && <EmptyState>{i18n.t("calendar.noVisitsDay")}</EmptyState>}
+      {date !== today &&
+        visits.map((v) => <VisitCard key={v.id} visit={v} refs={refs} today={today} canWork={canWorkOnVisit(user, v)} />)}
     </>
   );
 }
 
-function WeekView({ from, visits, refs, today, i18n: { t, fmt } }: { from: string; visits: Visit[]; refs: Refs; today: string; i18n: I18n }) {
+function WeekView({ from, visits, marks, refs, today, i18n: { t, fmt } }: { from: string; visits: Visit[]; marks: MarkMap; refs: Refs; today: string; i18n: I18n }) {
   const days = WEEK.map((_, i) => addDays(from, i));
   return (
     <Card className="divide-y divide-line p-0">
       {days.map((d, i) => {
         const list = visits.filter((v) => v.scheduled_date === d);
         const isToday = d === today;
+        const mark = marks.get(d);
         return (
           <div key={d} className="flex gap-3 px-3 py-3">
             <Link
               href={href("day", d)}
+              aria-label={mark ? `${fmt.weekdayDayMonth(d)}, ${t(mark === "done" ? "visitStatus.done" : "visitStatus.planned")}` : fmt.weekdayDayMonth(d)}
               className={cx(
                 "flex w-12 shrink-0 flex-col items-center justify-center self-start rounded-xl py-1.5",
-                isToday ? "bg-brand-600 text-white" : "bg-canvas text-ink",
+                isToday ? "bg-brand-solid text-white" : mark === "done" ? "bg-brand-50 text-brand-800" : "bg-canvas text-ink",
+                mark === "planned" && (isToday ? "ring-2 ring-white" : "ring-2 ring-brand-solid"),
               )}
             >
               <span className={cx("text-xs", isToday ? "text-white/80" : "text-muted")}>{fmt.weekdayShort(i + 1)}</span>
               <span className="text-lg font-semibold leading-tight">{Number(d.slice(8))}</span>
+              {mark === "done" && <Check className={cx("size-3", isToday ? "text-white" : "text-brand-700")} aria-hidden />}
             </Link>
             <div className="flex min-w-0 flex-1 flex-col gap-2 self-center">
               {list.length === 0 && <p className="text-sm text-muted">{t("calendar.noVisits")}</p>}
@@ -137,10 +165,17 @@ function WeekView({ from, visits, refs, today, i18n: { t, fmt } }: { from: strin
                 const office = refs.offices.get(v.office_id);
                 const status = displayVisitStatus(v.status, v.scheduled_date, today);
                 return (
-                  <Link key={v.id} href={`/visits/${v.id}`} className="flex items-center gap-2 rounded-xl bg-canvas px-3 py-2 active:bg-line">
-                    <span className={cx("size-2 shrink-0 rounded-full", DOT[status.tone])} aria-hidden />
+                  <Link
+                    key={v.id}
+                    href={`/visits/${v.id}`}
+                    style={officeColorVars(office?.color)}
+                    className={cx(
+                      "flex items-center gap-2 rounded-xl px-3 py-2 active:bg-line",
+                      office?.color ? "border-l-4 border-l-office bg-office-soft" : "bg-canvas",
+                    )}
+                  >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-medium">
+                      <p className={cx("truncate text-[15px] font-medium", office?.color && "text-office-ink")}>
                         {office?.name ?? t("common.office")}
                         <span className="font-normal text-muted"> · {office ? refs.cities.get(office.city_id)?.name : ""}</span>
                       </p>
@@ -161,7 +196,7 @@ function WeekView({ from, visits, refs, today, i18n: { t, fmt } }: { from: strin
   );
 }
 
-function MonthView({ month, visits, today, i18n: { t, fmt } }: { month: string; visits: Visit[]; today: string; i18n: I18n }) {
+function MonthView({ month, visits, marks, today, i18n: { t, fmt } }: { month: string; visits: Visit[]; marks: MarkMap; today: string; i18n: I18n }) {
   const first = startOfWeek(month);
   const last = addDays(startOfWeek(endOfMonth(month)), 6);
   const days: string[] = [];
@@ -182,44 +217,36 @@ function MonthView({ month, visits, today, i18n: { t, fmt } }: { month: string; 
           const list = visits.filter((v) => v.scheduled_date === d);
           const inMonth = d.slice(0, 7) === monthKey;
           const isToday = d === today;
+          const mark = marks.get(d);
+          const label = t("calendar.dayVisits", { date: fmt.dayMonth(d), count: list.length });
           return (
             <Link
               key={d}
               href={href("day", d)}
-              aria-label={t("calendar.dayVisits", { date: fmt.dayMonth(d), count: list.length })}
+              aria-label={mark ? `${label}, ${t(mark === "done" ? "visitStatus.done" : "visitStatus.planned")}` : label}
               className={cx(
-                "flex aspect-square flex-col items-center justify-center gap-1 rounded-xl text-sm",
-                isToday ? "bg-brand-600 font-semibold text-white" : list.length ? "bg-brand-50" : "",
+                "flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl text-sm",
+                isToday ? "bg-brand-solid font-semibold text-white" : mark === "done" ? "bg-brand-50 font-semibold text-brand-800" : "",
+                mark === "planned" && (isToday ? "ring-2 ring-inset ring-white" : "ring-2 ring-inset ring-brand-solid"),
                 !inMonth && "opacity-40",
               )}
             >
               {Number(d.slice(8))}
-              <span className="flex h-1.5 gap-0.5">
-                {list.slice(0, 4).map((v) => (
-                  <span
-                    key={v.id}
-                    className={cx("size-1.5 rounded-full", isToday ? "bg-white" : DOT[displayVisitStatus(v.status, v.scheduled_date, today).tone])}
-                  />
-                ))}
-              </span>
+              {mark === "done" ? <Check className={cx("size-3", isToday ? "text-white" : "text-brand-700")} aria-hidden /> : <span className="h-3" />}
             </Link>
           );
         })}
       </div>
       <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 px-2 pb-1 text-xs text-muted">
-        {(["planned", "in_progress", "done", "skipped"] as const).map((tone) => (
-          <Legend key={tone} tone={tone} label={t(`visitStatus.${tone}`)} />
-        ))}
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-4 rounded-md ring-2 ring-brand-solid" />
+          {t("visitStatus.planned")}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Check className="size-3.5 text-brand-700" />
+          {t("visitStatus.done")}
+        </span>
       </div>
     </Card>
-  );
-}
-
-function Legend({ tone, label }: { tone: VisitStatus; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={cx("size-2 rounded-full", DOT[tone])} />
-      {label}
-    </span>
   );
 }

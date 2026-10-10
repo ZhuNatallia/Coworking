@@ -3,11 +3,11 @@ import { LiveRefresh } from "@/components/live-refresh";
 import { requireUser } from "@/lib/auth/current";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const user = await requireUser();
+  await requireUser();
   return (
     <div className="mx-auto min-h-screen max-w-[430px] bg-canvas sm:border-x sm:border-line sm:shadow-sm">
       {children}
-      <BottomNav role={user.role} />
+      <BottomNav />
       <LiveRefresh />
     </div>
   );

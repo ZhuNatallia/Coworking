@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Camera, CheckCircle2, ShoppingBasket } from "lucide-react";
 import { AutoSubmitForm } from "@/components/auto-submit-form";
-import { Card, EmptyState, inputClass, Page, PageHeader, VisitBadge } from "@/components/ui";
+import { Card, EmptyState, inputClass, OfficeDot, Page, PageHeader, VisitBadge } from "@/components/ui";
 import { requireUser } from "@/lib/auth/current";
 import { db } from "@/lib/db";
 import { addDays, todayISO } from "@/lib/dates";
@@ -128,7 +128,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
             <span />
           )}
           <noscript>
-            <button type="submit" className="col-span-2 min-h-12 rounded-xl bg-brand-600 font-semibold text-white">
+            <button type="submit" className="col-span-2 min-h-12 rounded-xl bg-brand-solid font-semibold text-white">
               {t("history.show")}
             </button>
           </noscript>
@@ -154,8 +154,11 @@ export default async function HistoryPage(props: PageProps<"/history">) {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-semibold">{fmt.weekdayDayMonth(v.scheduled_date)}</p>
-                      <p className="truncate text-sm text-muted">
-                        {officeLabel(refs, v.office_id)} · {visitPeople(refs, v, t)}
+                      <p className="flex items-center gap-1.5 truncate text-sm text-muted">
+                        <OfficeDot color={refs.offices.get(v.office_id)?.color} className="size-2" />
+                        <span className="truncate">
+                          {officeLabel(refs, v.office_id)} · {visitPeople(refs, v, t)}
+                        </span>
                       </p>
                     </div>
                     <VisitBadge status={v.status} date={v.scheduled_date} today={today} />

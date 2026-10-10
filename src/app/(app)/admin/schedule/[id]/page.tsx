@@ -3,20 +3,20 @@ import { notFound } from "next/navigation";
 import { deleteSchedule } from "@/app/actions/schedule";
 import { ScheduleForm } from "@/components/schedule-form";
 import { Card, FormMessage, Page, PageHeader, VisitBadge } from "@/components/ui";
-import { requireAdmin } from "@/lib/auth/current";
+import { requireUser } from "@/lib/auth/current";
 import { todayISO } from "@/lib/dates";
 import { db } from "@/lib/db";
 import { getI18n } from "@/lib/i18n/server";
-import { loadRefs, officeLabel, visitPeople } from "@/lib/queries";
+import { canAccessOffice, loadRefs, officeLabel, visitPeople } from "@/lib/queries";
 
 export default async function EditSchedulePage(props: PageProps<"/admin/schedule/[id]">) {
-  await requireAdmin();
+  const user = await requireUser();
   const { t, fmt } = await getI18n();
   const { id } = await props.params;
   const { created } = await props.searchParams;
   const store = db();
   const [schedule] = await store.select("schedules", { eq: { id } });
-  if (!schedule) notFound();
+  if (!schedule || !(await canAccessOffice(user, schedule.office_id))) notFound();
   const refs = await loadRefs();
   const today = todayISO();
   const upcoming = (await store.select("visits", { eq: { schedule_id: id }, gte: { scheduled_date: today } }, [{ column: "scheduled_date" }])).slice(0, 6);

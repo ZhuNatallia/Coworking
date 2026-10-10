@@ -32,7 +32,7 @@ export function LanguagePicker({ compact = false }: { compact?: boolean }) {
             onClick={() => !active && startTransition(() => setLocale(l))}
             className={cx(
               "flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-2 text-[15px] font-medium transition",
-              active ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-ink",
+              active ? "border-brand-solid bg-brand-solid text-white" : "border-line bg-surface text-ink",
             )}
           >
             {active && !compact && <Check className="size-4" strokeWidth={3} />}

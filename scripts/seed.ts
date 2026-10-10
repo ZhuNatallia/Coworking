@@ -80,6 +80,8 @@ async function main() {
       localStore.reset();
     } else {
       const order = [
+        "office_mail",
+        "day_marks",
         "photos",
         "visit_supplies",
         "visit_tasks",
@@ -104,29 +106,29 @@ async function main() {
   const max = await ensureAccount("Max", "max@example.com", "employee");
 
   const now = new Date().toISOString();
-  const cityRows = ["München", "Augsburg", "Stuttgart"].map((name, i) => ({ id: newId(), name, sort_order: i, created_at: now }));
-  await store.insert("cities", cityRows);
-  const [muc, aug, stg] = cityRows;
-
+  // The Allgäu Coworking locations, https://www.allgaeu-coworking.de/
   const officeDefs = [
-    { key: "m1", city: muc, name: "Office 1", address: "Musterstraße 10, 80331 München" },
-    { key: "m2", city: muc, name: "Office 2", address: "Leopoldstraße 5, 80802 München" },
-    { key: "m3", city: muc, name: "Office 3", address: "Theresienstraße 20, 80333 München" },
-    { key: "a1", city: aug, name: "Office 1", address: "Bahnhofstraße 15, 86150 Augsburg" },
-    { key: "a2", city: aug, name: "Office 2", address: "Maximilianstraße 8, 86150 Augsburg" },
-    { key: "s1", city: stg, name: "Office 1", address: "Königstraße 12, 70173 Stuttgart" },
+    { key: "green", city: "Marktoberdorf", name: "The Green Room", address: "Marktplatz 10, 87616 Marktoberdorf" },
+    { key: "grey", city: "Kaufbeuren", name: "The Grey House", address: "Lindauer Str. 2-4, 87600 Kaufbeuren" },
+    { key: "blue", city: "Füssen", name: "The Blue Studio", address: "Kemptener Str. 7, 87629 Füssen" },
+    { key: "purple", city: "Schongau", name: "The Purple Place", address: "Jugendheimweg 3b, 86956 Schongau" },
+    { key: "white", city: "Weissensee", name: "The White Lake", address: "Seeweg 4, 87629 Weissensee" },
+    { key: "lime", city: "Buchloe", name: "The Lime Lounge", address: "Alpina-Ring 9, 86807 Buchloe" },
   ] as const;
+  const cityRows = officeDefs.map((o, i) => ({ id: newId(), name: o.city, sort_order: i, created_at: now }));
+  await store.insert("cities", cityRows);
   const offices = Object.fromEntries(
-    officeDefs.map((o) => [
+    officeDefs.map((o, i) => [
       o.key,
       {
         id: newId(),
-        city_id: o.city.id,
+        city_id: cityRows[i].id,
         name: o.name,
         address: o.address,
-        contact_name: "Max Mustermann",
-        contact_phone: "+49 123 456789",
-        notes: o.key === "m1" ? "Вход со двора. Код от двери: 1234." : null,
+        contact_name: "Allgäu Coworking GmbH",
+        contact_phone: "+49 8342 7040800",
+        notes: o.key === "green" ? "Ключ в цифровом ключ-боксе у входа." : null,
+        color: o.key,
         active: true,
         created_at: now,
       },
@@ -165,6 +167,7 @@ async function main() {
         low_threshold: null,
         critical_threshold: null,
         sort_order: i,
+        note: null,
         updated_at: now,
         updated_by: null,
       })),
@@ -174,21 +177,21 @@ async function main() {
   const wd = isoWeekday(today);
   const plusDays = (n: number) => ((wd - 1 + n) % 7) + 1;
   const evenWeek = isoWeek(today) % 2 === 0;
-  // München Office 1 alternates so that Peter has it today and Anna had it last week.
+  // The Green Room alternates so that Peter has it today and Anna had it last week.
   const scheduleDefs: Omit<Schedule, "id" | "created_at" | "starts_on" | "active">[] = [
     {
-      office_id: offices.m1.id,
+      office_id: offices.green.id,
       weekday: wd,
       time: "10:00",
       recurrence: "alternate",
       employee_1_id: evenWeek ? peter.id : anna.id,
       employee_2_id: evenWeek ? anna.id : peter.id,
     },
-    { office_id: offices.m2.id, weekday: wd, time: "14:00", recurrence: "weekly", employee_1_id: anna.id, employee_2_id: peter.id },
-    { office_id: offices.m3.id, weekday: plusDays(2), time: "11:00", recurrence: "weekly", employee_1_id: peter.id, employee_2_id: null },
-    { office_id: offices.a1.id, weekday: plusDays(1), time: "10:00", recurrence: "weekly", employee_1_id: max.id, employee_2_id: null },
-    { office_id: offices.a2.id, weekday: plusDays(3), time: "14:00", recurrence: "pair", employee_1_id: maria.id, employee_2_id: max.id },
-    { office_id: offices.s1.id, weekday: plusDays(4), time: "10:00", recurrence: "weekly", employee_1_id: maria.id, employee_2_id: null },
+    { office_id: offices.grey.id, weekday: wd, time: "14:00", recurrence: "weekly", employee_1_id: anna.id, employee_2_id: peter.id },
+    { office_id: offices.blue.id, weekday: plusDays(2), time: "11:00", recurrence: "weekly", employee_1_id: peter.id, employee_2_id: null },
+    { office_id: offices.purple.id, weekday: plusDays(1), time: "10:00", recurrence: "weekly", employee_1_id: max.id, employee_2_id: null },
+    { office_id: offices.white.id, weekday: plusDays(3), time: "14:00", recurrence: "pair", employee_1_id: maria.id, employee_2_id: max.id },
+    { office_id: offices.lime.id, weekday: plusDays(4), time: "10:00", recurrence: "weekly", employee_1_id: maria.id, employee_2_id: null },
   ];
   const schedules: Schedule[] = scheduleDefs.map((s) => ({
     ...s,
@@ -204,17 +207,17 @@ async function main() {
 
   // Supply problems recorded on the most recent past visit of an office.
   const lastVisitIssues: Record<string, { supply: string; status: SupplyStatus; qty: number }[]> = {
-    [offices.m1.id]: [
+    [offices.green.id]: [
       { supply: "Кофе в зернах", status: "low", qty: 1 },
       { supply: "Туалетная бумага", status: "out", qty: 0 },
     ],
-    [offices.m3.id]: [{ supply: "Жидкое мыло", status: "low", qty: 1 }],
-    [offices.a2.id]: [{ supply: "Туалетная бумага", status: "low", qty: 2 }],
-    [offices.s1.id]: [{ supply: "Тонер", status: "out", qty: 0 }],
+    [offices.blue.id]: [{ supply: "Жидкое мыло", status: "low", qty: 1 }],
+    [offices.white.id]: [{ supply: "Туалетная бумага", status: "low", qty: 2 }],
+    [offices.lime.id]: [{ supply: "Тонер", status: "out", qty: 0 }],
   };
   const lastNotes: Record<string, string> = {
-    [offices.m1.id]: "Нужно привезти кофе и туалетную бумагу.",
-    [offices.m3.id]: "Всё в порядке, мыло почти закончилось.",
+    [offices.green.id]: "Нужно привезти кофе и туалетную бумагу.",
+    [offices.blue.id]: "Всё в порядке, мыло почти закончилось.",
   };
 
   let visitCount = 0;
@@ -225,7 +228,7 @@ async function main() {
 
     for (const [i, date] of pastDates.entries()) {
       const e = employeesFor(s, date);
-      const skipped = s.office_id === offices.a1.id && i === pastDates.length - 3;
+      const skipped = s.office_id === offices.purple.id && i === pastDates.length - 3;
       const visitId = newId();
       const started = `${date}T${s.time ?? "10:00"}:00+02:00`;
       const finished = new Date(new Date(started).getTime() + 75 * 60_000).toISOString();
@@ -303,6 +306,7 @@ async function main() {
             reason: issue.status === "out" ? "out" : "low",
             status: "open",
             created_from_visit_id: visitId,
+            note: null,
             created_by: e.employee_1_id,
             created_at: finished,
             completed_at: null,
@@ -317,7 +321,7 @@ async function main() {
   await ensureVisitsGenerated(today);
   const future = await store.select("visits", { gte: { scheduled_date: today } });
 
-  console.log(`Seeded: 3 cities, 6 offices, ${schedules.length} schedules, ${visitCount} past visits, ${future.length} upcoming visits.`);
+  console.log(`Seeded: ${cityRows.length} cities, ${officeDefs.length} coworkings, ${schedules.length} schedules, ${visitCount} past visits, ${future.length} upcoming visits.`);
   console.log(`Logins (password "${password}"):`);
   for (const p of [anna, peter, maria, max]) console.log(`  ${p.email}  ${p.role}`);
 }

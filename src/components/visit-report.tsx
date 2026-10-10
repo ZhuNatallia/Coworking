@@ -18,7 +18,7 @@ function TaskLine({ name, doneLabel, status, t }: { name: string; doneLabel: str
       <span
         className={cx(
           "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full",
-          done ? "bg-brand-600 text-white" : notNeeded ? "bg-canvas text-muted" : "bg-danger-50 text-danger-700",
+          done ? "bg-brand-solid text-white" : notNeeded ? "bg-canvas text-muted" : "bg-danger-50 text-danger-700",
         )}
       >
         {done ? <Check className="size-3.5" strokeWidth={3} /> : notNeeded ? <Minus className="size-3.5" /> : <X className="size-3.5" strokeWidth={3} />}

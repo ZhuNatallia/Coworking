@@ -1,20 +1,31 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CalendarClock, History, Pencil, Phone } from "lucide-react";
 import type { ReactNode } from "react";
-import { addOfficeSupply, removeOfficeSupply, removeTask, restoreTask, saveTask } from "@/app/actions/admin";
+import { addOfficeMaterial, addOfficeSupply, removeOfficeSupply, removeTask, restoreTask, saveTask, setOfficeSupplyStatus } from "@/app/actions/admin";
+import { addOfficeMail, removeOfficeMail } from "@/app/actions/mail";
 import { ActionForm } from "@/components/action-form";
+import { DeleteOfficeButton } from "@/components/delete-office-button";
+import { SupplyPhotos } from "@/components/supply-photos";
 import { Tabs } from "@/components/tabs";
 import { TranslatedText } from "@/components/translated-text";
-import { Avatar, Card, EmptyState, Field, inputClass, LinkButton, Page, PageHeader, SupplyBadge } from "@/components/ui";
+import { Avatar, Card, EmptyState, Field, inputClass, LinkButton, OfficeDot, Page, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/current";
 import { db } from "@/lib/db";
 import type { T } from "@/lib/i18n/core";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
 import { assignedFromSchedules, canAccessOffice, loadRefs, localizeTasks } from "@/lib/queries";
-import type { Task, TaskCategory, TaskFrequency } from "@/lib/types";
+import type { SupplyCategory, SupplyStatus, SupplyUnit, Task, TaskCategory, TaskFrequency } from "@/lib/types";
 
-const TAB_KEYS = ["info", "tasks", "supplies"] as const;
+const SUPPLY_UNITS: SupplyUnit[] = ["pcs", "pack", "roll", "bottle", "ream", "kg", "l"];
+const SUPPLY_CATEGORIES: SupplyCategory[] = ["kitchen", "bathroom", "office", "cleaning"];
+const SUPPLY_STATUSES = ["ok", "low", "out"] as const satisfies readonly SupplyStatus[];
+const STATUS_BUTTON: Record<SupplyStatus, string> = {
+  ok: "border-brand-solid bg-brand-solid text-white",
+  low: "border-warn-700 bg-warn-50 text-warn-700",
+  out: "border-danger-700 bg-danger-50 text-danger-700",
+};
+
+const TAB_KEYS = ["info", "tasks", "supplies", "mail"] as const;
 
 export default async function OfficePage(props: PageProps<"/offices/[id]">) {
   const user = await requireUser();
@@ -30,19 +41,22 @@ export default async function OfficePage(props: PageProps<"/offices/[id]">) {
 
   return (
     <>
-      <PageHeader title={office.name} subtitle={city?.name} back="/offices" />
+      <PageHeader title={office.name} subtitle={city?.name} back="/" color={office.color} />
       <Page>
         <Tabs
           active={tab}
+          color={office.color}
           tabs={[
             { key: "info", label: t("office.tabInfo"), href: `/offices/${id}` },
             { key: "tasks", label: t("office.tabTasks"), href: `/offices/${id}?tab=tasks` },
             { key: "supplies", label: t("office.tabSupplies"), href: `/offices/${id}?tab=supplies` },
+            { key: "mail", label: t("office.tabMail"), href: `/offices/${id}?tab=mail` },
           ]}
         />
         {tab === "info" && <InfoTab officeId={id} admin={admin} />}
         {tab === "tasks" && <TasksTab officeId={id} admin={admin} />}
         {tab === "supplies" && <SuppliesTab officeId={id} admin={admin} />}
+        {tab === "mail" && <MailTab officeId={id} />}
       </Page>
     </>
   );
@@ -68,7 +82,12 @@ async function InfoTab({ officeId, admin }: { officeId: string; admin: boolean }
   return (
     <>
       <Card className="divide-y divide-line py-1.5">
-        <Row label={t("office.name")}>{office.name}</Row>
+        <Row label={t("office.name")}>
+          <span className="inline-flex items-center gap-2">
+            <OfficeDot color={office.color} className="size-4" />
+            {office.name}
+          </span>
+        </Row>
         <Row label={t("office.city")}>{refs.cities.get(office.city_id)?.name}</Row>
         <Row label={t("office.address")}>{office.address || "—"}</Row>
         <Row label={t("office.contact")}>{office.contact_name || "—"}</Row>
@@ -104,18 +123,19 @@ async function InfoTab({ officeId, admin }: { officeId: string; admin: boolean }
           <History className="size-5" />
           {t("office.history")}
         </LinkButton>
-        {admin && (
-          <LinkButton href={`/admin/schedule?office=${officeId}`} variant="outline">
-            <CalendarClock className="size-5" />
-            {t("office.schedule")}
-          </LinkButton>
-        )}
+        <LinkButton href={`/admin/schedule?office=${officeId}`} variant="outline">
+          <CalendarClock className="size-5" />
+          {t("office.schedule")}
+        </LinkButton>
       </div>
       {admin && (
-        <LinkButton href={`/offices/${officeId}/edit`} variant="outline">
-          <Pencil className="size-5" />
-          {t("office.edit")}
-        </LinkButton>
+        <>
+          <LinkButton href={`/offices/${officeId}/edit`} variant="outline">
+            <Pencil className="size-5" />
+            {t("office.edit")}
+          </LinkButton>
+          <DeleteOfficeButton id={officeId} label={t("office.delete")} confirmText={t("office.deleteConfirm", { name: office.name })} />
+        </>
       )}
     </>
   );
@@ -243,10 +263,77 @@ async function TasksTab({ officeId, admin }: { officeId: string; admin: boolean 
   );
 }
 
+async function MailTab({ officeId }: { officeId: string }) {
+  const { t, fmt } = await getI18n();
+  const refs = await loadRefs();
+  const rows = await db().select("office_mail", { eq: { office_id: officeId } }, [{ column: "created_at", ascending: false }]);
+  const tr = await getTranslator(rows.map((row) => row.instruction));
+
+  return (
+    <>
+      <Card>
+        <ActionForm action={addOfficeMail} submitLabel={t("mail.add")} resetOnSuccess>
+          <input type="hidden" name="office_id" value={officeId} />
+          <Field label={t("mail.recipient")}>
+            <input name="recipient" className={inputClass} placeholder={t("mail.recipientPlaceholder")} />
+          </Field>
+          <Field label={t("mail.instruction")}>
+            <textarea name="instruction" rows={2} className={`${inputClass} py-3`} placeholder={t("mail.instructionPlaceholder")} />
+          </Field>
+        </ActionForm>
+      </Card>
+      {rows.length === 0 ? (
+        <EmptyState>{t("mail.empty")}</EmptyState>
+      ) : (
+        <Card className="p-0">
+          <table className="w-full table-fixed border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-line text-xs text-muted">
+                <th className="w-[34%] px-3 py-2 font-medium">{t("mail.recipient")}</th>
+                <th className="px-3 py-2 font-medium">{t("mail.instruction")}</th>
+                <th className="w-8 px-1 py-2">
+                  <span className="sr-only">{t("mail.remove")}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} className="border-b border-line align-top last:border-0">
+                  <td className="px-3 py-2.5">
+                    <span className="block font-medium">{row.recipient}</span>
+                    <span className="mt-1 block text-xs text-muted">
+                      {fmt.dateTime(row.created_at)}
+                      {row.created_by && ` · ${refs.profiles.get(row.created_by)?.name ?? ""}`}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <TranslatedText text={tr(row.instruction)} original={row.instruction} />
+                  </td>
+                  <td className="px-1 py-2 text-right">
+                    <form action={removeOfficeMail}>
+                      <input type="hidden" name="id" value={row.id} />
+                      <button type="submit" className="px-1 text-xl leading-none text-muted" aria-label={t("mail.remove")}>
+                        ×
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+    </>
+  );
+}
+
 async function SuppliesTab({ officeId, admin }: { officeId: string; admin: boolean }) {
   const { t, fmt } = await getI18n();
   const refs = await loadRefs();
   const rows = await db().select("office_supplies", { eq: { office_id: officeId } }, [{ column: "sort_order" }]);
+  const photos = rows.length
+    ? await db().select("photos", { in: { office_supply_id: rows.map((r) => r.id) } }, [{ column: "created_at" }])
+    : [];
   const present = new Set(rows.map((r) => r.supply_id));
   const available = [...refs.supplies.values()].filter((s) => s.active && !present.has(s.id));
 
@@ -260,52 +347,99 @@ async function SuppliesTab({ officeId, admin }: { officeId: string; admin: boole
             const supply = refs.supplies.get(r.supply_id);
             if (!supply) return null;
             return (
-              <div key={r.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{supply.name}</p>
-                  <p className="text-sm text-muted">
-                    {t(`supplyCategory.${supply.category}`)}
-                    {r.quantity != null && ` · ${fmt.quantity(r.quantity, supply.unit)}`}
-                    {r.updated_at && ` · ${fmt.dateTime(r.updated_at)}`}
-                  </p>
+              <div key={r.id} className="flex flex-col gap-2 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{supply.name}</p>
+                    <p className="text-sm text-muted">
+                      {t(`supplyCategory.${supply.category}`)}
+                      {r.quantity != null && ` · ${fmt.quantity(r.quantity, supply.unit)}`}
+                      {r.updated_at && ` · ${fmt.dateTime(r.updated_at)}`}
+                    </p>
+                  </div>
+                  {admin && (
+                    <form action={removeOfficeSupply}>
+                      <input type="hidden" name="office_id" value={officeId} />
+                      <input type="hidden" name="supply_id" value={r.supply_id} />
+                      <button type="submit" className="px-1 text-xl leading-none text-muted" aria-label={t("officeSupplies.remove", { name: supply.name })}>
+                        ×
+                      </button>
+                    </form>
+                  )}
                 </div>
-                <SupplyBadge status={r.status} />
-                {admin && (
-                  <form action={removeOfficeSupply}>
-                    <input type="hidden" name="office_id" value={officeId} />
-                    <input type="hidden" name="supply_id" value={r.supply_id} />
-                    <button type="submit" className="px-1 text-xl leading-none text-muted" aria-label={t("officeSupplies.remove", { name: supply.name })}>
-                      ×
-                    </button>
-                  </form>
-                )}
+                <form action={setOfficeSupplyStatus} className="flex flex-col gap-2">
+                  <input type="hidden" name="office_id" value={officeId} />
+                  <input type="hidden" name="supply_id" value={r.supply_id} />
+                  <div className="grid grid-cols-3 gap-2">
+                    {SUPPLY_STATUSES.map((status) => (
+                      <button
+                        key={status}
+                        type="submit"
+                        name="status"
+                        value={status}
+                        className={`min-h-11 rounded-xl border px-1 text-[13px] font-semibold leading-tight ${
+                          r.status === status ? STATUS_BUTTON[status] : "border-line bg-surface text-ink"
+                        }`}
+                      >
+                        {t(`supplyStatus.${status}`)}
+                      </button>
+                    ))}
+                  </div>
+                  <SupplyPhotos
+                    officeSupplyId={r.id}
+                    note={r.note}
+                    photos={photos.filter((p) => p.office_supply_id === r.id)}
+                  />
+                </form>
               </div>
             );
           })}
         </Card>
       )}
+      {admin && available.length > 0 && (
+        <Card>
+          <ActionForm action={addOfficeSupply} submitLabel={t("officeSupplies.add")} variant="outline">
+            <input type="hidden" name="office_id" value={officeId} />
+            <select name="supply_id" className={inputClass} aria-label={t("officeSupplies.material")}>
+              {available.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </ActionForm>
+        </Card>
+      )}
       {admin && (
         <Card>
-          {available.length === 0 ? (
-            <p className="text-sm text-muted">
-              {t("officeSupplies.allAdded")}{" "}
-              <Link href="/admin/supplies" className="font-medium text-brand-600">
-                {t("officeSupplies.catalog")}
-              </Link>
-              .
-            </p>
-          ) : (
-            <ActionForm action={addOfficeSupply} submitLabel={t("officeSupplies.add")} variant="outline">
-              <input type="hidden" name="office_id" value={officeId} />
-              <select name="supply_id" className={inputClass} aria-label={t("officeSupplies.material")}>
-                {available.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </ActionForm>
-          )}
+          <h2 className="mb-3 font-semibold">{t("supplies.new")}</h2>
+          <ActionForm action={addOfficeMaterial} submitLabel={t("common.add")} resetOnSuccess>
+            <input type="hidden" name="office_id" value={officeId} />
+            <Field label={t("supplies.name")}>
+              <input name="name" required className={inputClass} placeholder={t("supplies.namePlaceholder")} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("supplies.unit")}>
+                <select name="unit" defaultValue="pcs" className={inputClass}>
+                  {SUPPLY_UNITS.map((u) => (
+                    <option key={u} value={u}>
+                      {t(`unitNames.${u}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={t("supplies.category")}>
+                <select name="category" defaultValue="kitchen" className={inputClass}>
+                  {SUPPLY_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {t(`supplyCategory.${c}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </ActionForm>
+          <p className="mt-3 text-sm text-muted">{t("supplies.hint")}</p>
         </Card>
       )}
     </>

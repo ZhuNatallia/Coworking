@@ -144,7 +144,7 @@ export async function uploadPhoto(form: FormData): Promise<{ error?: string }> {
   if ((await store.select("photos", { eq: { visit_id: visitId } })).length >= 10) return { error: t("photos.tooMany") };
   const id = newId();
   const key = await savePhoto(visitId, id, Buffer.from(await file.arrayBuffer()), file.type);
-  await store.insert("photos", [{ id, visit_id: visitId, url: key, created_at: nowISO(), created_by: user.id }]);
+  await store.insert("photos", [{ id, visit_id: visitId, office_supply_id: null, url: key, created_at: nowISO(), created_by: user.id }]);
   refresh();
   return {};
 }
@@ -152,7 +152,7 @@ export async function uploadPhoto(form: FormData): Promise<{ error?: string }> {
 export async function removePhoto(photoId: string) {
   const store = db();
   const [photo] = await store.select("photos", { eq: { id: photoId } });
-  if (!photo) return;
+  if (!photo?.visit_id) return;
   await loadOpenVisit(photo.visit_id);
   await store.remove("photos", { eq: { id: photoId } });
   await deletePhoto(photo.url);

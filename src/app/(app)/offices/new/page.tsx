@@ -1,6 +1,6 @@
 import { createOffice } from "@/app/actions/admin";
 import { OfficeForm } from "@/components/office-form";
-import { Card, EmptyState, Page, PageHeader } from "@/components/ui";
+import { Card, Page, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth/current";
 import { getI18n } from "@/lib/i18n/server";
 import { loadRefs } from "@/lib/queries";
@@ -11,15 +11,11 @@ export default async function NewOfficePage() {
   const cities = [...(await loadRefs()).cities.values()];
   return (
     <>
-      <PageHeader title={t("offices.newTitle")} back="/offices" />
+      <PageHeader title={t("offices.newTitle")} back="/" />
       <Page>
-        {cities.length === 0 ? (
-          <EmptyState>{t("offices.needCity")}</EmptyState>
-        ) : (
-          <Card>
-            <OfficeForm action={createOffice} cities={cities} />
-          </Card>
-        )}
+        <Card>
+          <OfficeForm action={createOffice} cities={cities} />
+        </Card>
         <p className="px-1 text-sm text-muted">{t("offices.newHint")}</p>
       </Page>
     </>

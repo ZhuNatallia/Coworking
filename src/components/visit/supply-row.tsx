@@ -19,7 +19,7 @@ export interface SupplyRowProps {
 }
 
 const STATUS_STYLE: Record<SupplyStatus, string> = {
-  ok: "border-brand-600 bg-brand-600 text-white",
+  ok: "border-brand-solid bg-brand-solid text-white",
   low: "border-warn-700 bg-warn-50 text-warn-700",
   out: "border-danger-700 bg-danger-50 text-danger-700",
 };
@@ -76,7 +76,7 @@ export function SupplyRow({ id, visitId, name, unit, quantity: q0, status: s0, r
     <div className="flex flex-col gap-2.5 py-3">
       <div className="flex items-center gap-3">
         <p className="min-w-0 flex-1 font-semibold">{name}</p>
-        <div className="flex items-center rounded-xl border border-line bg-white">
+        <div className="flex items-center rounded-xl border border-line bg-surface">
           <button type="button" onClick={() => changeQty(-step)} className="flex size-10 items-center justify-center text-muted" aria-label={t("supply.less", { name })}>
             <Minus className="size-4" />
           </button>
@@ -111,7 +111,7 @@ export function SupplyRow({ id, visitId, name, unit, quantity: q0, status: s0, r
             onClick={() => save(quantity, s)}
             className={cx(
               "min-h-11 rounded-xl border px-1 text-sm font-semibold transition",
-              status === s ? STATUS_STYLE[s] : "border-line bg-white text-ink",
+              status === s ? STATUS_STYLE[s] : "border-line bg-surface text-ink",
             )}
           >
             {t(`supplyStatus.${s}`)}
@@ -132,7 +132,7 @@ export function SupplyRow({ id, visitId, name, unit, quantity: q0, status: s0, r
               type="button"
               onClick={deliver}
               disabled={pending}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-brand-600 px-3 font-semibold text-white"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-brand-solid px-3 font-semibold text-white"
             >
               <PackageCheck className="size-4" />
               {t("supply.delivered")}

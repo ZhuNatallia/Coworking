@@ -8,11 +8,15 @@
   --color-brand-600: #267549;
   --color-brand-700: #1e5f3b;
   --color-brand-800: #174a2e;
+  /* Filled buttons and today's cell. Stays dark green in both themes, so white text keeps its contrast. */
+  --color-brand-solid: #267549;
+  --color-brand-solid-hover: #1e5f3b;
 
   --color-ink: #1b221e;
   --color-muted: #69736d;
   --color-line: #e3e8e5;
   --color-canvas: #f3f5f4;
+  --color-surface: #ffffff;
 
   --color-warn-50: #fff6dc;
   --color-warn-200: #f6dd8f;
@@ -23,6 +27,45 @@
   --color-danger-700: #a3302a;
 
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Colour of a coworking, set on an element with officeColorVars(); falls back to the brand colour. */
+@theme inline {
+  --color-office: var(--office, var(--color-brand-solid));
+  --color-office-ink: var(--office-ink, var(--color-brand-700));
+  --color-office-soft: var(--office-soft, var(--color-brand-50));
+  --color-office-on: var(--office-on, #ffffff);
+}
+
+/* Light is explicit (`only`), so a phone set to dark does not recolour the page on its own. */
+html[data-theme="light"] {
+  color-scheme: only light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: only dark;
+
+  --color-ink: #e8eee9;
+  --color-muted: #9aa69f;
+  --color-line: #31403a;
+  --color-canvas: #101614;
+  --color-surface: #1a2320;
+
+  --color-brand-50: #173028;
+  --color-brand-100: #24503a;
+  --color-brand-200: #2c5640;
+  --color-brand-500: #3d9e68;
+  --color-brand-600: #8ed4a8;
+  --color-brand-700: #b7e6c8;
+  --color-brand-800: #d5f0e0;
+
+  --color-warn-50: #332a12;
+  --color-warn-200: #6a5418;
+  --color-warn-700: #f0cc6a;
+
+  --color-danger-50: #3a1e1c;
+  --color-danger-200: #7a3a36;
+  --color-danger-700: #f0a8a4;
 }
 
 html,

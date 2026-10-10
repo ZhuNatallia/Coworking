@@ -2,32 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, CalendarDays, Home, MoreHorizontal, ShoppingBag, Users } from "lucide-react";
+import { CalendarDays, Home, MoreHorizontal, ShoppingBag } from "lucide-react";
 import { useI18n } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/core";
-import type { Role } from "@/lib/types";
 import { cx } from "./ui-core";
 
-const EMPLOYEE: { href: string; label: MessageKey; icon: typeof Home }[] = [
-  { href: "/", label: "nav.today", icon: Home },
-  { href: "/calendar", label: "nav.calendar", icon: CalendarDays },
-  { href: "/take", label: "nav.take", icon: ShoppingBag },
-  { href: "/offices", label: "nav.offices", icon: Building2 },
-  { href: "/more", label: "nav.more", icon: MoreHorizontal },
-];
-
-const ADMIN: typeof EMPLOYEE = [
+const ITEMS: { href: string; label: MessageKey; icon: typeof Home }[] = [
   { href: "/", label: "nav.home", icon: Home },
+  { href: "/take", label: "nav.take", icon: ShoppingBag },
   { href: "/calendar", label: "nav.calendar", icon: CalendarDays },
-  { href: "/offices", label: "nav.offices", icon: Building2 },
-  { href: "/admin/employees", label: "nav.employees", icon: Users },
   { href: "/more", label: "nav.more", icon: MoreHorizontal },
 ];
 
-const MORE_PATHS = ["/more", "/history", "/profile", "/admin", "/take"];
+const MORE_PATHS = ["/more", "/history", "/profile", "/admin"];
 
 function isActive(href: string, pathname: string, items: { href: string }[]) {
-  if (href === "/") return pathname === "/" || pathname.startsWith("/visits");
+  if (href === "/") return pathname === "/" || pathname.startsWith("/visits") || pathname.startsWith("/offices");
   if (pathname === href || pathname.startsWith(`${href}/`)) return true;
   if (href === "/more") {
     const claimed = items.some((i) => i.href !== "/more" && i.href !== "/" && (pathname === i.href || pathname.startsWith(`${i.href}/`)));
@@ -36,12 +26,12 @@ function isActive(href: string, pathname: string, items: { href: string }[]) {
   return false;
 }
 
-export function BottomNav({ role }: { role: Role }) {
+export function BottomNav() {
   const pathname = usePathname();
   const { t } = useI18n();
-  const items = role === "admin" ? ADMIN : EMPLOYEE;
+  const items = ITEMS;
   return (
-    <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[430px] border-t border-line bg-white" aria-label={t("nav.menu")}>
+    <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[430px] border-t border-line bg-surface" aria-label={t("nav.menu")}>
       <ul className="flex">
         {items.map(({ href, label, icon: Icon }) => {
           const active = isActive(href, pathname, items);

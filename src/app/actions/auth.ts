@@ -8,6 +8,7 @@ import { endSession, getCurrentUser, requireUser, startSession } from "@/lib/aut
 import { db } from "@/lib/db";
 import { isLocale, LOCALE_COOKIE, type Locale } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
+import { isTheme, THEME_COOKIE, type Theme } from "@/lib/theme";
 
 export type FormState = { error?: string; ok?: string; email?: string } | undefined;
 
@@ -16,8 +17,14 @@ function safeNext(value: FormDataEntryValue | null): string {
   return next.startsWith("/") && !next.startsWith("//") ? next : "/";
 }
 
+const YEAR = { path: "/", sameSite: "lax" as const, maxAge: 60 * 60 * 24 * 365 };
+
 async function rememberLocale(locale: Locale) {
-  (await cookies()).set(LOCALE_COOKIE, locale, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+  (await cookies()).set(LOCALE_COOKIE, locale, YEAR);
+}
+
+async function rememberTheme(theme: Theme) {
+  (await cookies()).set(THEME_COOKIE, theme, YEAR);
 }
 
 export async function login(_prev: FormState, form: FormData): Promise<FormState> {
@@ -29,6 +36,7 @@ export async function login(_prev: FormState, form: FormData): Promise<FormState
   if (!profile) return { error: t("login.invalid"), email };
   await startSession(profile.id);
   if (isLocale(profile.locale)) await rememberLocale(profile.locale);
+  if (isTheme(profile.theme)) await rememberTheme(profile.theme);
   redirect(safeNext(form.get("next")));
 }
 
@@ -43,6 +51,15 @@ export async function setLocale(locale: string) {
   const user = await getCurrentUser();
   if (user) await db().update("profiles", { eq: { id: user.id } }, { locale });
   await rememberLocale(locale);
+  refresh();
+}
+
+/** Switches light or dark for the signed-in user (saved in the profile) or for this browser. */
+export async function setTheme(theme: string) {
+  if (!isTheme(theme)) return;
+  const user = await getCurrentUser();
+  if (user) await db().update("profiles", { eq: { id: user.id } }, { theme });
+  await rememberTheme(theme);
   refresh();
 }
 

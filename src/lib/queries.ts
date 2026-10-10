@@ -107,11 +107,13 @@ export interface TakeItem {
   request: SupplyRequest;
   supply: Supply;
   officeLabel: string;
+  officeColor: string | null;
   cityName: string;
   createdByName: string | null;
   completedByName: string | null;
   /** Next planned visit of the current user to this office, if any. */
   nextVisit: Visit | null;
+  photos: { id: string }[];
 }
 
 export async function takeItems(
@@ -131,19 +133,31 @@ export async function takeItems(
           [{ column: "completed_at", ascending: false }],
         );
   const upcoming = await visitsInRange(user, today, addDays(today, 28), { mine: true });
+  const supplyRows = await store.select("office_supplies");
+  const rowByPair = new Map(supplyRows.filter((r) => offices.has(r.office_id)).map((r) => [`${r.office_id}:${r.supply_id}`, r.id]));
+  const rowIds = [...rowByPair.values()];
+  const photos = rowIds.length ? await store.select("photos", { in: { office_supply_id: rowIds } }, [{ column: "created_at" }]) : [];
+  const photosByRow = new Map<string, { id: string }[]>();
+  for (const photo of photos) {
+    if (!photo.office_supply_id) continue;
+    photosByRow.set(photo.office_supply_id, [...(photosByRow.get(photo.office_supply_id) ?? []), { id: photo.id }]);
+  }
 
   return requests
     .filter((r) => offices.has(r.office_id) && refs.supplies.has(r.supply_id))
     .map((r) => {
       const office = refs.offices.get(r.office_id);
+      const rowId = rowByPair.get(`${r.office_id}:${r.supply_id}`);
       return {
         request: r,
         supply: refs.supplies.get(r.supply_id)!,
         officeLabel: officeLabel(refs, r.office_id),
+        officeColor: office?.color ?? null,
         cityName: office ? refs.cities.get(office.city_id)?.name ?? "" : "",
         createdByName: r.created_by ? refs.profiles.get(r.created_by)?.name ?? null : null,
         completedByName: r.completed_by ? refs.profiles.get(r.completed_by)?.name ?? null : null,
         nextVisit: upcoming.find((v) => v.office_id === r.office_id && v.status !== "done" && v.status !== "skipped") ?? null,
+        photos: opts.status === "open" && rowId ? photosByRow.get(rowId) ?? [] : [],
       };
     })
     .sort((a, b) => (a.nextVisit?.scheduled_date ?? "9999").localeCompare(b.nextVisit?.scheduled_date ?? "9999"));

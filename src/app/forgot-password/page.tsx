@@ -11,7 +11,7 @@ export default function ForgotPasswordPage() {
   const { t } = useI18n();
   const [state, action, pending] = useActionState(requestPasswordReset, undefined);
   return (
-    <main className="mx-auto flex min-h-screen max-w-[430px] flex-col justify-center gap-8 bg-white px-6 py-10">
+    <main className="mx-auto flex min-h-screen max-w-[430px] flex-col justify-center gap-8 bg-surface px-6 py-10">
       <Logo />
       <form action={action} className="flex flex-col gap-4">
         <p className="text-center text-muted">{t("forgot.intro")}</p>

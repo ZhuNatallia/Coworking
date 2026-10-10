@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
-import { Card, EmptyState, SectionTitle } from "@/components/ui";
+import { Card, EmptyState, OfficeDot, SectionTitle } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
 import type { TakeItem } from "@/lib/queries";
 
@@ -30,7 +30,10 @@ export async function TakePreview({ items, limit = 5 }: { items: TakeItem[]; lim
               />
               <div className="min-w-0 flex-1">
                 <p className="font-medium">{item.supply.name}</p>
-                <p className="truncate text-sm text-muted">{item.officeLabel}</p>
+                <p className="flex items-center gap-1.5 truncate text-sm text-muted">
+                  <OfficeDot color={item.officeColor} className="size-2" />
+                  {item.officeLabel}
+                </p>
               </div>
               <span className={`text-xs font-semibold ${item.request.reason === "out" ? "text-danger-700" : "text-warn-700"}`}>
                 {t(item.request.reason === "out" ? "supplyStatus.out" : "supplyStatus.low")}

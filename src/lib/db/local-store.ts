@@ -25,6 +25,8 @@ const TABLES: (TableName | "local_credentials")[] = [
   "photos",
   "app_settings",
   "translations",
+  "day_marks",
+  "office_mail",
   "local_credentials",
 ];
 

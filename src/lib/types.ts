@@ -18,6 +18,8 @@ export interface Profile {
   active: boolean;
   /** App language: ru, en, de or ro. Missing on rows created before languages existed. */
   locale?: string | null;
+  /** App appearance: light or dark. Missing on rows created before themes existed. */
+  theme?: string | null;
   created_at: string;
 }
 
@@ -36,6 +38,8 @@ export interface Office {
   contact_name: string | null;
   contact_phone: string | null;
   notes: string | null;
+  /** Key from OFFICE_COLORS; null shows the brand colour. */
+  color?: string | null;
   active: boolean;
   created_at: string;
 }
@@ -113,6 +117,7 @@ export interface OfficeSupply {
   low_threshold: number | null;
   critical_threshold: number | null;
   sort_order: number;
+  note: string | null;
   updated_at: string | null;
   updated_by: string | null;
 }
@@ -135,6 +140,7 @@ export interface SupplyRequest {
   reason: "low" | "out";
   status: RequestStatus;
   created_from_visit_id: string | null;
+  note: string | null;
   created_by: string | null;
   created_at: string;
   completed_at: string | null;
@@ -143,7 +149,8 @@ export interface SupplyRequest {
 
 export interface Photo {
   id: string;
-  visit_id: string;
+  visit_id: string | null;
+  office_supply_id: string | null;
   url: string;
   created_at: string;
   created_by: string | null;
@@ -163,6 +170,24 @@ export interface Translation {
   created_at: string;
 }
 
+/** A shared mark on one calendar day. Not derived from the weekly cleaning visits. */
+export interface DayMark {
+  id: string;
+  status: "planned" | "done";
+  updated_by: string | null;
+  updated_at: string;
+}
+
+/** A letter recorded at one coworking: who it is for, and what to do with it. */
+export interface OfficeMail {
+  id: string;
+  office_id: string;
+  recipient: string;
+  instruction: string;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface Tables {
   profiles: Profile;
   cities: City;
@@ -178,6 +203,8 @@ export interface Tables {
   photos: Photo;
   app_settings: AppSetting;
   translations: Translation;
+  day_marks: DayMark;
+  office_mail: OfficeMail;
 }
 
 export type TableName = keyof Tables;

@@ -2,7 +2,8 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/auth/current";
+import { requireAdmin, requireUser } from "@/lib/auth/current";
+import { canAccessOffice } from "@/lib/queries";
 import { isValidISODate, todayISO } from "@/lib/dates";
 import { db, newId, nowISO } from "@/lib/db";
 import { clearFutureVisits, syncSchedule } from "@/lib/domain/schedule";
@@ -14,7 +15,7 @@ import type { FormState } from "./auth";
 const TIME_RE = /^\d{2}:\d{2}$/;
 
 export async function saveSchedule(_prev: FormState, form: FormData): Promise<FormState> {
-  await requireAdmin();
+  const user = await requireUser();
   const { t } = await getI18n();
   const store = db();
   const id = str(form, "id");
@@ -26,7 +27,9 @@ export async function saveSchedule(_prev: FormState, form: FormData): Promise<Fo
   const employee2 = optStr(form, "employee_2_id");
   const startsOn = str(form, "starts_on") || todayISO();
 
-  if (!(await store.select("offices", { eq: { id: officeId } })).length) return { error: t("schedule.errOffice") };
+  if (!(await store.select("offices", { eq: { id: officeId } })).length || !(await canAccessOffice(user, officeId))) {
+    return { error: t("schedule.errOffice") };
+  }
   if (!(weekday >= 1 && weekday <= 7)) return { error: t("schedule.errWeekday") };
   if (time && !TIME_RE.test(time)) return { error: t("schedule.errTime") };
   if (!employee1) return { error: t("schedule.errEmployee") };
@@ -50,7 +53,7 @@ export async function saveSchedule(_prev: FormState, form: FormData): Promise<Fo
   let schedule: Schedule;
   if (id) {
     const [existing] = await store.select("schedules", { eq: { id } });
-    if (!existing) return { error: t("schedule.errNotFound") };
+    if (!existing || !(await canAccessOffice(user, existing.office_id))) return { error: t("schedule.errNotFound") };
     await store.update("schedules", { eq: { id } }, fields);
     schedule = { ...existing, ...fields };
   } else {
@@ -70,11 +73,11 @@ export async function saveSchedule(_prev: FormState, form: FormData): Promise<Fo
 }
 
 export async function deleteSchedule(form: FormData) {
-  await requireAdmin();
+  const user = await requireUser();
   const id = str(form, "id");
   const store = db();
   const [schedule] = await store.select("schedules", { eq: { id } });
-  if (!schedule) redirect("/admin/schedule");
+  if (!schedule || !(await canAccessOffice(user, schedule.office_id))) redirect("/admin/schedule");
   await clearFutureVisits(id);
   await store.update("visits", { eq: { schedule_id: id } }, { schedule_id: null });
   await store.remove("schedules", { eq: { id } });

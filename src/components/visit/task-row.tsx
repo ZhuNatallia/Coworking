@@ -26,13 +26,13 @@ function Checkbox({ checked, label, onChange, disabled }: { checked: boolean; la
       onClick={() => onChange(!checked)}
       className={cx(
         "flex min-h-12 w-full items-center gap-3 rounded-xl border px-3.5 text-left transition",
-        checked ? "border-brand-500 bg-brand-50" : "border-line bg-white",
+        checked ? "border-brand-500 bg-brand-50" : "border-line bg-surface",
       )}
     >
       <span
         className={cx(
           "flex size-6 shrink-0 items-center justify-center rounded-md border-2",
-          checked ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white",
+          checked ? "border-brand-solid bg-brand-solid text-white" : "border-line bg-surface",
         )}
       >
         {checked && <Check className="size-4" strokeWidth={3} />}
@@ -90,7 +90,7 @@ export function TaskRow({ id, name, doneLabel, frequency, required, status: init
                   onClick={() => save(value)}
                   className={cx(
                     "min-h-11 rounded-xl border text-[15px] font-medium transition",
-                    active ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-ink",
+                    active ? "border-brand-solid bg-brand-solid text-white" : "border-line bg-surface text-ink",
                   )}
                 >
                   {text}

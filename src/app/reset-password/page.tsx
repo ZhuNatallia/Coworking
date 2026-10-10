@@ -41,7 +41,7 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-[430px] flex-col justify-center gap-8 bg-white px-6 py-10">
+    <main className="mx-auto flex min-h-screen max-w-[430px] flex-col justify-center gap-8 bg-surface px-6 py-10">
       <Logo />
       {!supabase ? (
         <FormMessage state={{ error: t("reset.supabaseOnly") }} />

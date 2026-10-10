@@ -13,10 +13,24 @@ const RECURRENCE_OPTIONS: { value: Recurrence; title: MessageKey; hint: MessageK
   { value: "pair", title: "schedule.pair", hint: "schedule.pairHint" },
 ];
 
-export async function ScheduleForm({ refs, schedule, officeId }: { refs: Refs; schedule?: Schedule; officeId?: string }) {
+export async function ScheduleForm({
+  refs,
+  schedule,
+  officeId,
+  officeIds,
+  defaultEmployeeId,
+}: {
+  refs: Refs;
+  schedule?: Schedule;
+  officeId?: string;
+  officeIds?: Set<string>;
+  defaultEmployeeId?: string;
+}) {
   const { t, fmt } = await getI18n();
   const employees = [...refs.profiles.values()].filter((p) => p.active);
-  const offices = [...refs.offices.values()].filter((o) => o.active).sort((a, b) => officeLabel(refs, a.id).localeCompare(officeLabel(refs, b.id)));
+  const offices = [...refs.offices.values()]
+    .filter((o) => o.active && (!officeIds || officeIds.has(o.id)))
+    .sort((a, b) => officeLabel(refs, a.id).localeCompare(officeLabel(refs, b.id)));
   const people = (
     <>
       {employees.map((p) => (
@@ -63,7 +77,7 @@ export async function ScheduleForm({ refs, schedule, officeId }: { refs: Refs; s
         {RECURRENCE_OPTIONS.map((o) => (
           <label
             key={o.value}
-            className="flex cursor-pointer gap-3 rounded-xl border border-line bg-white p-3 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"
+            className="flex cursor-pointer gap-3 rounded-xl border border-line bg-surface p-3 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"
           >
             <input
               type="radio"
@@ -81,7 +95,7 @@ export async function ScheduleForm({ refs, schedule, officeId }: { refs: Refs; s
       </fieldset>
 
       <Field label={t("schedule.employee1")}>
-        <select name="employee_1_id" defaultValue={schedule?.employee_1_id ?? ""} required className={inputClass}>
+        <select name="employee_1_id" defaultValue={schedule?.employee_1_id ?? defaultEmployeeId ?? ""} required className={inputClass}>
           <option value="" disabled>
             {t("schedule.choose")}
           </option>

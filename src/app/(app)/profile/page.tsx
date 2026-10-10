@@ -1,10 +1,12 @@
-import { Bell, ChevronDown, Languages, LogOut, Smartphone, UserRound } from "lucide-react";
+import { Bell, ChevronDown, Languages, LogOut, Smartphone, SunMoon, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { logout } from "@/app/actions/auth";
 import { LanguagePicker } from "@/components/language-picker";
+import { ThemePicker } from "@/components/theme-picker";
 import { Avatar, Card, Page, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/current";
 import { getI18n } from "@/lib/i18n/server";
+import { getTheme } from "@/lib/theme-server";
 import { ProfileForm } from "./profile-form";
 
 function Section({ icon, title, children, open }: { icon: ReactNode; title: string; children: ReactNode; open?: boolean }) {
@@ -22,7 +24,7 @@ function Section({ icon, title, children, open }: { icon: ReactNode; title: stri
 
 export default async function ProfilePage() {
   const user = await requireUser();
-  const { t } = await getI18n();
+  const [{ t }, theme] = await Promise.all([getI18n(), getTheme()]);
   return (
     <>
       <PageHeader title={t("profile.title")} />
@@ -43,6 +45,15 @@ export default async function ProfilePage() {
           </h2>
           <LanguagePicker />
           <p className="text-sm text-muted">{t("profile.languageHint")}</p>
+        </Card>
+
+        <Card className="flex flex-col gap-3">
+          <h2 className="inline-flex items-center gap-3 font-medium">
+            <SunMoon className="size-5 text-brand-600" />
+            {t("profile.theme")}
+          </h2>
+          <ThemePicker theme={theme} />
+          <p className="text-sm text-muted">{t("profile.themeHint")}</p>
         </Card>
 
         <Card className="divide-y divide-line p-0">
@@ -66,7 +77,7 @@ export default async function ProfilePage() {
         </Card>
 
         <form action={logout}>
-          <button type="submit" className="flex w-full items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3.5 font-medium text-danger-700">
+          <button type="submit" className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 font-medium text-danger-700">
             <LogOut className="size-5" />
             {t("profile.logout")}
           </button>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
+import { officeColorVars } from "@/lib/office-colors";
 import { BackLink } from "./badges";
 import { cx } from "./ui-core";
 
@@ -12,18 +13,23 @@ export function PageHeader({
   subtitle,
   back,
   action,
+  color,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
   back?: string;
   action?: ReactNode;
+  /** Coworking colour: a stripe on top and the title in that colour. */
+  color?: string | null;
 }) {
+  const vars = officeColorVars(color);
   return (
-    <header className="pt-safe sticky top-0 z-20 border-b border-line bg-white/95 backdrop-blur">
+    <header className="pt-safe sticky top-0 z-20 border-b border-line bg-surface/95 backdrop-blur" style={vars}>
+      {vars && <div className="h-1.5 bg-office" />}
       <div className="flex min-h-14 items-center gap-2 px-4 py-2">
         {back && <BackLink href={back} />}
         <div className={cx("min-w-0 flex-1", back && "text-center")}>
-          <h1 className={cx("truncate font-bold text-ink", back ? "text-[17px]" : "text-2xl")}>{title}</h1>
+          <h1 className={cx("truncate font-bold", vars ? "text-office-ink" : "text-ink", back ? "text-[17px]" : "text-2xl")}>{title}</h1>
           {subtitle && <p className="truncate text-sm text-muted">{subtitle}</p>}
         </div>
         {action ? <div className="shrink-0">{action}</div> : back ? <div className="w-8 shrink-0" /> : null}
@@ -38,7 +44,7 @@ export function Page({ children, className }: { children: ReactNode; className?:
 
 export function Card({ children, className, ...rest }: ComponentProps<"div">) {
   return (
-    <div className={cx("rounded-2xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(16,24,20,0.04)]", className)} {...rest}>
+    <div className={cx("rounded-2xl border border-line bg-surface p-4 shadow-[0_1px_2px_rgba(16,24,20,0.04)]", className)} {...rest}>
       {children}
     </div>
   );
@@ -58,9 +64,9 @@ const buttonBase =
   "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 text-[16px] font-semibold transition active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none";
 
 export const buttonStyles = {
-  primary: cx(buttonBase, "bg-brand-600 text-white hover:bg-brand-700"),
+  primary: cx(buttonBase, "bg-brand-solid text-white hover:bg-brand-solid-hover"),
   secondary: cx(buttonBase, "bg-canvas text-ink hover:bg-line"),
-  outline: cx(buttonBase, "border border-line bg-white text-ink hover:bg-canvas"),
+  outline: cx(buttonBase, "border border-line bg-surface text-ink hover:bg-canvas"),
   danger: cx(buttonBase, "bg-danger-50 text-danger-700 hover:bg-danger-200"),
 };
 
@@ -97,6 +103,13 @@ export function Avatar({ name, size = 36 }: { name: string; size?: number }) {
   );
 }
 
+/** Small dot in the coworking's colour; renders nothing when no colour is set. */
+export function OfficeDot({ color, className }: { color: string | null | undefined; className?: string }) {
+  const vars = officeColorVars(color);
+  if (!vars) return null;
+  return <span aria-hidden style={vars} className={cx("inline-block size-2.5 shrink-0 rounded-full bg-office ring-1 ring-black/10", className)} />;
+}
+
 export function ListLink({ href, children, className }: { href: string; children: ReactNode; className?: string }) {
   return (
     <Link href={href} className={cx("flex items-center gap-3 px-4 py-3.5 active:bg-canvas", className)}>
@@ -107,7 +120,7 @@ export function ListLink({ href, children, className }: { href: string; children
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
-  return <p className="rounded-2xl border border-dashed border-line bg-white/60 px-4 py-6 text-center text-sm text-muted">{children}</p>;
+  return <p className="rounded-2xl border border-dashed border-line bg-surface/60 px-4 py-6 text-center text-sm text-muted">{children}</p>;
 }
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
@@ -121,7 +134,7 @@ export function Field({ label, children, hint }: { label: string; children: Reac
 }
 
 export const inputClass =
-  "min-h-12 w-full rounded-xl border border-line bg-white px-3.5 text-[16px] text-ink outline-none placeholder:text-muted/70 focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
+  "min-h-12 w-full rounded-xl border border-line bg-surface px-3.5 text-[16px] text-ink outline-none placeholder:text-muted/70 focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 
 export function FormMessage({ state }: { state?: { error?: string; ok?: string } }) {
   if (state?.error) return <p className="rounded-xl bg-danger-50 px-3.5 py-2.5 text-sm text-danger-700" role="alert">{state.error}</p>;

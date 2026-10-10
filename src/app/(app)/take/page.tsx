@@ -2,10 +2,11 @@ import Link from "next/link";
 import { CalendarDays } from "lucide-react";
 import { DeliverButton, UndoButton } from "@/components/take-buttons";
 import { Tabs } from "@/components/tabs";
-import { Card, EmptyState, Page, PageHeader } from "@/components/ui";
+import { Card, cx, EmptyState, OfficeDot, Page, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/current";
 import { dateOfTimestamp } from "@/lib/dates";
 import { getI18n } from "@/lib/i18n/server";
+import { officeColorVars } from "@/lib/office-colors";
 import { takeItems, type TakeItem } from "@/lib/queries";
 
 function groupByOffice(items: TakeItem[]) {
@@ -42,7 +43,10 @@ export default async function TakePage(props: PageProps<"/take">) {
               <div key={item.request.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{item.supply.name}</p>
-                  <p className="truncate text-sm text-muted">{item.officeLabel}</p>
+                  <p className="flex items-center gap-1.5 truncate text-sm text-muted">
+                    <OfficeDot color={item.officeColor} className="size-2" />
+                    {item.officeLabel}
+                  </p>
                   <p className="text-xs text-muted">
                     {t("take.deliveredBy", { name: item.completedByName ?? "—" })}
                     {item.request.completed_at && `, ${fmt.dateTime(item.request.completed_at)}`}
@@ -58,7 +62,12 @@ export default async function TakePage(props: PageProps<"/take">) {
             return (
               <section key={first.request.office_id} className="flex flex-col gap-2">
                 <div className="flex items-end justify-between gap-2 px-1">
-                  <Link href={`/offices/${first.request.office_id}?tab=supplies`} className="font-semibold">
+                  <Link
+                    href={`/offices/${first.request.office_id}?tab=supplies`}
+                    style={officeColorVars(first.officeColor)}
+                    className={cx("inline-flex items-center gap-2 font-semibold", first.officeColor && "text-office-ink")}
+                  >
+                    <OfficeDot color={first.officeColor} />
                     {first.officeLabel}
                   </Link>
                   {first.nextVisit && (
@@ -79,6 +88,17 @@ export default async function TakePage(props: PageProps<"/take">) {
                           <p className={`text-sm ${item.request.reason === "out" ? "text-danger-700" : "text-warn-700"}`}>
                             {item.request.reason === "out" ? t("take.out") : left ? t("take.lowLeft", { qty: left }) : t("take.low")}
                           </p>
+                          {item.request.note && <p className="text-sm text-ink">{item.request.note}</p>}
+                          {item.photos.length > 0 && (
+                            <div className="mt-2 flex gap-2">
+                              {item.photos.map((photo) => (
+                                <a key={photo.id} href={`/api/photos/${photo.id}`} target="_blank" rel="noreferrer" className="block size-16 overflow-hidden rounded-lg bg-canvas">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={`/api/photos/${photo.id}`} alt={t("photos.altSupply")} className="size-full object-cover" />
+                                </a>
+                              ))}
+                            </div>
+                          )}
                           <p className="text-xs text-muted">
                             {t("take.markedBy", { name: item.createdByName ?? "—", date: fmt.date(dateOfTimestamp(item.request.created_at)) })}
                           </p>

@@ -1,12 +1,14 @@
 import { Clock, MapPin, UserRound } from "lucide-react";
-import { Card, LinkButton, VisitBadge } from "@/components/ui";
+import { Card, cx, LinkButton, VisitBadge } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
+import { officeColorVars } from "@/lib/office-colors";
 import { officeLabel, visitPeople, type Refs } from "@/lib/queries";
 import type { Visit } from "@/lib/types";
 
 export async function VisitCard({ visit, refs, today, canWork }: { visit: Visit; refs: Refs; today: string; canWork: boolean }) {
   const { t } = await getI18n();
   const office = refs.offices.get(visit.office_id);
+  const colored = officeColorVars(office?.color);
   const action =
     visit.status === "done"
       ? t("visitCard.report")
@@ -16,13 +18,18 @@ export async function VisitCard({ visit, refs, today, canWork }: { visit: Visit;
           ? t("visitCard.open")
           : t("visitCard.details");
   return (
-    <Card className="flex flex-col gap-3">
+    <Card className={cx("flex flex-col gap-3", colored && "border-l-[6px] border-l-office")} style={colored}>
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+        <span
+          className={cx(
+            "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full",
+            colored ? "bg-office text-office-on ring-1 ring-inset ring-black/10" : "bg-brand-50 text-brand-600",
+          )}
+        >
           <MapPin className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold leading-tight">{officeLabel(refs, visit.office_id)}</p>
+          <p className={cx("font-semibold leading-tight", colored && "text-office-ink")}>{officeLabel(refs, visit.office_id)}</p>
           {office?.address && <p className="truncate text-sm text-muted">{office.address}</p>}
         </div>
         <VisitBadge status={visit.status} date={visit.scheduled_date} today={today} />

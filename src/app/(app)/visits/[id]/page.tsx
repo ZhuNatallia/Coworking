@@ -7,7 +7,6 @@ import { Tabs } from "@/components/tabs";
 import { TranslatedText } from "@/components/translated-text";
 import { Avatar, buttonStyles, Card, cx, EmptyState, LinkButton, Page, PageHeader, SectionTitle, VisitBadge } from "@/components/ui";
 import { FinishForm } from "@/components/visit/finish-form";
-import { PhotoUploader } from "@/components/visit/photo-uploader";
 import { SupplyRow } from "@/components/visit/supply-row";
 import { TaskRow } from "@/components/visit/task-row";
 import { VisitReport } from "@/components/visit-report";
@@ -16,6 +15,7 @@ import { dateOfTimestamp, todayISO } from "@/lib/dates";
 import { db } from "@/lib/db";
 import type { I18n, MessageKey } from "@/lib/i18n/core";
 import { getI18n, getTranslator } from "@/lib/i18n/server";
+import { officeColorVars } from "@/lib/office-colors";
 import { canWorkOnVisit, loadRefs, localizeTasks, officeLabel, visitPeople, type Refs } from "@/lib/queries";
 import type { Profile, SupplyCategory, TaskCategory, Visit } from "@/lib/types";
 
@@ -64,10 +64,12 @@ export default async function VisitPage(props: PageProps<"/visits/[id]">) {
         title={office?.name ?? t("visit.title")}
         subtitle={`${refs.cities.get(office?.city_id ?? "")?.name ?? ""} · ${fmt.weekdayDayMonth(visit.scheduled_date)}${visit.time ? `, ${visit.time}` : ""}`}
         back={sp.from === "history" ? "/history" : user.role === "admin" ? `/calendar?view=day&date=${visit.scheduled_date}` : "/"}
+        color={office?.color}
       />
       <Page>
         <Tabs
           active={tab}
+          color={office?.color}
           tabs={[
             { key: "visit", label: t("visit.tabVisit"), href: visit.status === "in_progress" ? `${base}?step=${step}` : base },
             { key: "prev", label: t("visit.tabPrev"), href: `${base}?tab=prev` },
@@ -102,9 +104,9 @@ async function StartScreen({ visit, refs, i18n: { t, fmt } }: { visit: Visit; re
 
   return (
     <>
-      <Card className="flex flex-col gap-2.5">
+      <Card className="flex flex-col gap-2.5" style={officeColorVars(office?.color)}>
         <div className="flex items-start gap-3">
-          <MapPin className="mt-0.5 size-5 shrink-0 text-brand-600" />
+          <MapPin className="mt-0.5 size-5 shrink-0 text-office-ink" />
           <div className="min-w-0 flex-1">
             <p className="font-semibold">{officeLabel(refs, visit.office_id)}</p>
             {office?.address && <p className="text-sm text-muted">{office.address}</p>}
@@ -218,12 +220,11 @@ function StepNav({ visitId, step, t }: { visitId: string; step: number; t: I18n[
 
 async function Wizard({ visit, refs, step, i18n: { t, fmt } }: { visit: Visit; refs: Refs; step: number; i18n: I18n }) {
   const store = db();
-  const [rawTasks, visitTasks, visitSupplies, requests, photos] = await Promise.all([
+  const [rawTasks, visitTasks, visitSupplies, requests] = await Promise.all([
     store.select("tasks", { eq: { office_id: visit.office_id } }, [{ column: "sort_order" }]),
     store.select("visit_tasks", { eq: { visit_id: visit.id } }),
     store.select("visit_supplies", { eq: { visit_id: visit.id } }),
     openRequestsFor(visit.office_id),
-    store.select("photos", { eq: { visit_id: visit.id } }, [{ column: "created_at" }]),
   ]);
   const def = STEPS[step - 1];
   const tasks = await localizeTasks(rawTasks.filter((task) => def.tasks.includes(task.category)));
@@ -242,7 +243,7 @@ async function Wizard({ visit, refs, step, i18n: { t, fmt } }: { visit: Visit; r
         {STEPS.map((s, i) => (
           <li key={s.title} className="flex min-w-0 flex-1 flex-col gap-1">
             <Link href={`/visits/${visit.id}?step=${i + 1}`} aria-current={i + 1 === step ? "step" : undefined} className="flex flex-col gap-1">
-              <span className={cx("h-1.5 rounded-full", i + 1 <= step ? "bg-brand-600" : "bg-line")} />
+              <span className={cx("h-1.5 rounded-full", i + 1 <= step ? "bg-brand-solid" : "bg-line")} />
               <span className={cx("truncate text-[11px]", i + 1 === step ? "font-semibold text-ink" : "text-muted")}>{t(s.title)}</span>
             </Link>
           </li>
@@ -296,7 +297,6 @@ async function Wizard({ visit, refs, step, i18n: { t, fmt } }: { visit: Visit; r
         </>
       ) : (
         <Card className="flex flex-col gap-4">
-          <PhotoUploader visitId={visit.id} photos={photos} />
           <FinishForm visitId={visit.id} notes={visit.notes} />
         </Card>
       )}

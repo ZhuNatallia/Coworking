@@ -17,7 +17,7 @@ export function DeliverButton({ requestId, label }: { requestId: string; label: 
       aria-label={t("take.deliver", { name: label })}
       className={cx(
         "flex size-8 shrink-0 items-center justify-center rounded-lg border-2 transition",
-        pending ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-transparent hover:border-brand-500",
+        pending ? "border-brand-solid bg-brand-solid text-white" : "border-line bg-surface text-transparent hover:border-brand-500",
       )}
     >
       <Check className="size-5" strokeWidth={3} />

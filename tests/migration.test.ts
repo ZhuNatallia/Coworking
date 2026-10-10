@@ -68,6 +68,12 @@ describe("migrations", () => {
     await expect(pg.exec(`update profiles set locale = 'fr' where id = '${PETER}'`)).rejects.toThrow();
   });
 
+  it("gives every profile the light theme and rejects anything else", async () => {
+    const { rows } = await pg.query<{ theme: string }>("select distinct theme from profiles");
+    expect(rows.map((r) => r.theme)).toEqual(["light"]);
+    await expect(pg.exec(`update profiles set theme = 'blue' where id = '${PETER}'`)).rejects.toThrow();
+  });
+
   it("lets employees read translations but not write them", async () => {
     await pg.exec(`insert into translations (id, lang, source, text) values ('h1', 'en', 'Кофе', 'Coffee')`);
     expect(await as(PETER, "select text from translations")).toEqual([{ text: "Coffee" }]);
@@ -109,6 +115,25 @@ describe("migrations", () => {
     expect(rows[0].n).toBe(0);
     const s = await pg.query<{ n: number }>("select count(*)::int as n from schedules");
     expect(s.rows[0].n).toBe(2);
+  });
+
+  it("stores one planned or done mark per day", async () => {
+    await pg.exec(`insert into day_marks (id, status, updated_by) values ('2026-10-06', 'planned', '${PETER}')`);
+    await expect(pg.exec(`insert into day_marks (id, status) values ('2026-10-06', 'done')`)).rejects.toThrow();
+    await expect(pg.exec(`insert into day_marks (id, status) values ('2026-10-07', 'skipped')`)).rejects.toThrow();
+    expect(await as<{ status: string }>(MAX, "select status from day_marks")).toEqual([{ status: "planned" }]);
+  });
+
+  it("keeps office mail inside the offices a person works at", async () => {
+    await as(
+      PETER,
+      `insert into office_mail (office_id, recipient, instruction, created_by) values ('20000000-0000-0000-0000-000000000001', 'Firma', 'Scan', '${PETER}')`,
+    );
+    await expect(
+      as(PETER, `insert into office_mail (office_id, recipient, instruction) values ('20000000-0000-0000-0000-000000000002', 'Other', 'Deliver')`),
+    ).rejects.toThrow();
+    expect(await as(MAX, "select recipient from office_mail")).toEqual([]);
+    expect(await as<{ recipient: string }>(ADMIN, "select recipient from office_mail")).toEqual([{ recipient: "Firma" }]);
   });
 
   it("shows take-with-you items only for the employee's offices", async () => {

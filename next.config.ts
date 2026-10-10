@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The badge sits on the home tab in this phone layout and steals the tap.
+  devIndicators: false,
   experimental: {
     serverActions: { bodySizeLimit: "8mb" },
   },

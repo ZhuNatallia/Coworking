@@ -11,7 +11,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
   const { t } = await getI18n();
   const { next } = await props.searchParams;
   return (
-    <main className="mx-auto flex min-h-screen max-w-[430px] flex-col justify-center gap-10 bg-white px-6 py-10">
+    <main className="mx-auto flex min-h-screen max-w-[430px] flex-col justify-center gap-10 bg-surface px-6 py-10">
       <LanguagePicker compact />
       <Logo />
       <LoginForm next={typeof next === "string" ? next : "/"} />

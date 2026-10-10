@@ -1,4 +1,4 @@
-import { Boxes, CalendarClock, CalendarDays, History, ShoppingBag, UserRound } from "lucide-react";
+import { CalendarClock, History, UserRound, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { Card, ListLink, Page, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/current";
@@ -27,15 +27,9 @@ export default async function MorePage() {
       <PageHeader title={t("more.title")} />
       <Page>
         <Card className="divide-y divide-line p-0">
-          {admin && <Item href="/take" icon={<ShoppingBag className="size-5" />} title={t("take.title")} hint={t("more.takeHint")} />}
-          {!admin && <Item href="/calendar" icon={<CalendarDays className="size-5" />} title={t("calendar.title")} hint={t("more.calendarHint")} />}
           <Item href="/history" icon={<History className="size-5" />} title={t("more.history")} hint={t("more.historyHint")} />
-          {admin && (
-            <>
-              <Item href="/admin/schedule" icon={<CalendarClock className="size-5" />} title={t("more.schedule")} hint={t("more.scheduleHint")} />
-              <Item href="/admin/supplies" icon={<Boxes className="size-5" />} title={t("more.supplies")} hint={t("more.suppliesHint")} />
-            </>
-          )}
+          <Item href="/admin/schedule" icon={<CalendarClock className="size-5" />} title={t("more.schedule")} hint={t("more.scheduleHint")} />
+          {admin && <Item href="/admin/employees" icon={<Users className="size-5" />} title={t("nav.employees")} hint={t("more.employeesHint")} />}
           <Item href="/profile" icon={<UserRound className="size-5" />} title={t("more.profile")} hint={t("more.profileHint")} />
         </Card>
       </Page>
